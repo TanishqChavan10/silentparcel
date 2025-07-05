@@ -1,0 +1,4 @@
+api setup completet
+captcha not working
+file not uploading
+chat not chatting
