@@ -29,7 +29,7 @@ export function ChatRoomCreator({ onComplete, onBack }: ChatRoomCreatorProps) {
     // Generate room credentials
     const password = Math.random().toString(36).substring(2, 12).toUpperCase();
     const roomId = Math.random().toString(36).substring(2, 8);
-    const link = `https://secureshare.app/rooms/${roomId}`;
+    const link = `https://silentparcel.vercel.app/rooms/${roomId}`;
     
     setGeneratedPassword(password);
     setRoomLink(link);

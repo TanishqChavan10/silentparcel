@@ -13,13 +13,19 @@ export const verifyPassword = async (password: string, hashedPassword: string): 
 };
 
 // JWT token operations
-export const generateToken = (payload: object, expiresIn: string = '24h'): string => {
-  return jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn });
+export const generateToken = (payload: string | object | Buffer, expiresIn: string = '24h'): string => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn } as any);
 };
 
 export const verifyToken = (token: string): any => {
   try {
-    return jwt.verify(token, process.env.JWT_SECRET!);
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET environment variable is required');
+    }
+    return jwt.verify(token, process.env.JWT_SECRET);
   } catch (error) {
     return null;
   }
@@ -74,17 +80,27 @@ export const generateAvatarUrl = (seed: string): string => {
   return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`;
 };
 
-// Encryption/Decryption for sensitive data
+// Encryption/Decryption for sensitive data using secure AES-256-CBC
 export const encrypt = (text: string): string => {
-  const cipher = crypto.createCipher('aes-256-cbc', process.env.ENCRYPTION_KEY!);
+  const key = crypto.scryptSync(process.env.ENCRYPTION_KEY!, 'salt', 32);
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+  
   let encrypted = cipher.update(text, 'utf8', 'hex');
   encrypted += cipher.final('hex');
-  return encrypted;
+  
+  return iv.toString('hex') + ':' + encrypted;
 };
 
 export const decrypt = (encryptedText: string): string => {
-  const decipher = crypto.createDecipher('aes-256-cbc', process.env.ENCRYPTION_KEY!);
-  let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+  const key = crypto.scryptSync(process.env.ENCRYPTION_KEY!, 'salt', 32);
+  const [ivHex, encrypted] = encryptedText.split(':');
+  
+  const iv = Buffer.from(ivHex, 'hex');
+  const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+  
+  let decrypted = decipher.update(encrypted, 'hex', 'utf8');
   decrypted += decipher.final('utf8');
+  
   return decrypted;
 };

@@ -4,8 +4,21 @@ import { fileUploadRateLimiter } from '@/lib/middleware/rateLimiter';
 import { generateId, generateSecureId, validateFileType, validateFileSize, getClientIP } from '@/lib/security';
 import { supabaseAdmin } from '@/lib/supabase';
 import redis, { REDIS_KEYS, setWithExpiry } from '@/lib/redis';
+import { virusScanner } from '@/lib/virusScanner';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
+  // Check environment configuration
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || 
+      process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co' ||
+      !process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ||
+      process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT === 'https://placeholder.appwrite.io/v1') {
+    return NextResponse.json(
+      { error: 'Service not properly configured' },
+      { status: 503 }
+    );
+  }
+
   try {
     // Rate limiting
     const rateLimitResult = await fileUploadRateLimiter.isAllowed(request);
@@ -75,16 +88,38 @@ export async function POST(request: NextRequest) {
     const downloadToken = generateSecureId();
     const editToken = generateSecureId();
 
+    // Convert file to buffer for virus scanning
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    
+    // Virus scanning
+    const scanResult = await virusScanner.scanBuffer(fileBuffer);
+    if (!scanResult.isClean) {
+      // Log security event
+      await supabaseAdmin.from('audit_logs').insert({
+        action: 'virus_detected',
+        resource_type: 'file',
+        resource_id: fileId,
+        ip_address: getClientIP(request),
+        user_agent: request.headers.get('user-agent'),
+        metadata: {
+          filename: file.name,
+          signature: scanResult.signature,
+          message: scanResult.message
+        }
+      });
+      
+      return NextResponse.json(
+        { error: 'File contains malicious content and cannot be uploaded' },
+        { status: 400 }
+      );
+    }
+
     // Upload file to Appwrite Storage
     const uploadedFile = await storage.createFile(
       BUCKETS.FILES,
       fileId,
       file
     );
-
-    // TODO: Implement virus scanning with ClamAV
-    // For now, we'll simulate virus scanning
-    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Calculate expiry
     let expiryDate = null;

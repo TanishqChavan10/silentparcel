@@ -60,7 +60,7 @@ export default function FilesPage() {
         clearInterval(interval);
         setVirusScanStatus('clean');
         const fileId = Math.random().toString(36).substring(2, 12);
-        setDownloadLink(`https://secureshare.app/files/${fileId}`);
+        setDownloadLink(`https://silentparcel.vercel.app/files/${fileId}`);
         setEditToken('edit_token_abc123');
         setTimeout(() => setStage('complete'), 500);
       }
