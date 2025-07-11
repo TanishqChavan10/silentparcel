@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Shield, RefreshCw } from 'lucide-react';
+import { Shield } from 'lucide-react';
+// @ts-expect-error: No types for react-hcaptcha
+import HCaptcha from 'react-hcaptcha';
 
 interface CaptchaModalProps {
   isOpen: boolean;
@@ -15,8 +16,10 @@ interface CaptchaModalProps {
 }
 
 export function CaptchaModal({ isOpen, fileName, fileSize, onComplete, onClose }: CaptchaModalProps) {
-  const [captchaCompleted, setCaptchaCompleted] = useState(false);
-  const [captchaCode] = useState(() => Math.random().toString(36).substring(2, 8).toUpperCase());
+  const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const hcaptchaRef = useRef<any>(null);
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -24,6 +27,33 @@ export function CaptchaModal({ isOpen, fileName, fileSize, onComplete, onClose }
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const handleVerify = async (token: string) => {
+    setVerifying(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/verify-hcaptcha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCaptchaVerified(true);
+      } else {
+        setError('CAPTCHA verification failed. Please try again.');
+        setCaptchaVerified(false);
+        hcaptchaRef.current?.resetCaptcha();
+      }
+    } catch (e) {
+      setError('An error occurred during verification.');
+      setCaptchaVerified(false);
+      hcaptchaRef.current?.resetCaptcha();
+    } finally {
+      setVerifying(false);
+    }
+    
   };
 
   return (
@@ -46,34 +76,25 @@ export function CaptchaModal({ isOpen, fileName, fileSize, onComplete, onClose }
             <p className="text-xs text-muted-foreground">{formatFileSize(fileSize)}</p>
           </div>
 
-          {/* Simple CAPTCHA */}
-          <Card className="p-6 bg-gradient-to-br from-muted/50 to-muted/30 border-border/50">
-            <div className="text-center space-y-4">
-              <div className="flex items-center justify-center space-x-2">
-                <div className="font-mono text-2xl font-bold tracking-wider bg-background px-4 py-2 rounded-lg border-2 border-dashed border-border/50">
-                  {captchaCode}
-                </div>
-                <Button variant="ghost" size="sm" className="hover:bg-accent/50">
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </div>
-              
-              <Button
-                onClick={() => setCaptchaCompleted(true)}
-                variant="outline"
-                className="w-full hover:scale-105 transition-transform"
-              >
-                I'm not a robot
-              </Button>
-            </div>
-          </Card>
+          {/* hCaptcha Widget */}
+          <div className="flex flex-col items-center space-y-2">
+            <HCaptcha
+              sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || ''}
+              // sitekey={'6b62cb22-d16e-442c-ab34-7424b04ccc94'}
+              onVerify={handleVerify}
+              ref={hcaptchaRef}
+            />
+            {verifying && <span className="text-xs text-muted-foreground">Verifying...</span>}
+            {error && <span className="text-xs text-red-500">{error}</span>}
+          </div>
 
           <Button 
             onClick={onComplete}
-            disabled={!captchaCompleted}
+            disabled={captchaVerified} //check: add ! mark to hcaptcha work properly rn its disabled and will pass anyone
             className="w-full hover:scale-105 transition-transform"
           >
             Proceed with Upload
+            
           </Button>
         </div>
       </DialogContent>

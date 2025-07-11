@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Upload, FileText, Lock, Shield, Check, AlertTriangle, Eye } from 'lucide-react';
+import { ArrowLeft, Upload, FileText, Lock, Shield, Check, AlertTriangle, Eye, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -28,21 +28,24 @@ interface FileData {
 export default function FilesPage() {
   const router = useRouter();
   const [stage, setStage] = useState<UploadStage>('select');
-  const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [virusScanStatus, setVirusScanStatus] = useState<'scanning' | 'clean' | 'infected' | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<FileData[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<number[]>([]);
+  const [virusScanStatus, setVirusScanStatus] = useState<(null | 'scanning' | 'clean' | 'infected')[]>([]);
   const [passwordProtected, setPasswordProtected] = useState(false);
   const [password, setPassword] = useState('');
-  const [downloadLink, setDownloadLink] = useState('');
-  const [editToken, setEditToken] = useState('');
+  const [downloadLinks, setDownloadLinks] = useState<string[]>([]);
+  const [editTokens, setEditTokens] = useState<string[]>([]);
 
-  const handleFileSelect = useCallback((file: File) => {
-    setSelectedFile({
+  const handleFileSelect = useCallback((files: File[]) => {
+    const fileDataArr = files.map(file => ({
       name: file.name,
       size: file.size,
       type: file.type,
       file
-    });
+    }));
+    setSelectedFiles(fileDataArr);
+    setUploadProgress(new Array(fileDataArr.length).fill(0));
+    setVirusScanStatus(new Array(fileDataArr.length).fill(null));
   }, []);
 
   const handleCaptchaComplete = () => {
@@ -51,20 +54,42 @@ export default function FilesPage() {
   };
 
   const simulateUpload = () => {
-    setVirusScanStatus('scanning');
-    let progress = 0;
+    const progressArr = [...uploadProgress];
+    const statusArr = [...virusScanStatus];
+    const linksArr: string[] = [];
+    const tokensArr: string[] = [];
+    selectedFiles.forEach((file, idx) => {
+      statusArr[idx] = 'scanning';
+    });
+    setVirusScanStatus([...statusArr]);
+    let progress = [...progressArr];
     const interval = setInterval(() => {
-      progress += Math.random() * 15;
-      if (progress >= 100) {
-        progress = 100;
+      let allDone = true;
+      for (let i = 0; i < selectedFiles.length; i++) {
+        if (progress[i] < 100) {
+          progress[i] += Math.random() * 15;
+          if (progress[i] >= 100) {
+            progress[i] = 100;
+            statusArr[i] = 'clean';
+            linksArr[i] = `https://silentparcel.vercel.app/files/${Math.random().toString(36).substring(2, 12)}`;
+            tokensArr[i] = `edit_token_${Math.random().toString(36).substring(2, 8)}`;
+          } else {
+            allDone = false;
+          }
+        }
+      }
+      setUploadProgress([...progress]);
+      setVirusScanStatus([...statusArr]);
+      if (progress.every(p => p >= 100)) {
         clearInterval(interval);
-        setVirusScanStatus('clean');
-        const fileId = Math.random().toString(36).substring(2, 12);
-        setDownloadLink(`https://silentparcel.vercel.app/files/${fileId}`);
-        setEditToken('edit_token_abc123');
+        setDownloadLinks(
+          selectedFiles.map((_, i) => linksArr[i] || `https://silentparcel.vercel.app/files/${Math.random().toString(36).substring(2, 12)}`)
+        );
+        setEditTokens(
+          selectedFiles.map((_, i) => tokensArr[i] || `edit_token_${Math.random().toString(36).substring(2, 8)}`)
+        );
         setTimeout(() => setStage('complete'), 500);
       }
-      setUploadProgress(Math.min(progress, 100));
     }, 200);
   };
 
@@ -101,27 +126,45 @@ export default function FilesPage() {
               </p>
             </div>
 
-            <FileDropzone onFileSelect={handleFileSelect} />
+            <FileDropzone onFileSelect={handleFileSelect} multiple />
 
-            {selectedFile && (
+            {selectedFiles.length > 0 && (
               <Card className="bg-card/50 border-border/50">
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center">
                     <FileText className="h-5 w-5 mr-2" />
-                    Selected File
+                    Selected Files
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <div>
-                      <p className="font-medium">{selectedFile.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatFileSize(selectedFile.size)} • {selectedFile.type || 'Unknown type'}
-                      </p>
-                    </div>
-                    <Badge variant={selectedFile.size > 700 * 1024 * 1024 ? 'destructive' : 'secondary'}>
-                      {selectedFile.size > 700 * 1024 * 1024 ? 'Too Large' : 'Valid'}
-                    </Badge>
+                  <div className="space-y-2">
+                    {selectedFiles.map((file, idx) => (
+                      <div key={file.name + file.size} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div>
+                          <p className="font-medium">{file.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {formatFileSize(file.size)} • {file.type || 'Unknown type'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={file.size > 700 * 1024 * 1024 ? 'destructive' : 'secondary'}>
+                            {file.size > 700 * 1024 * 1024 ? 'Too Large' : 'Valid'}
+                          </Badge>
+                          <button
+                            type="button"
+                            aria-label="Remove file"
+                            className="ml-2 p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                            onClick={() => {
+                              setSelectedFiles(selectedFiles.filter((_, i) => i !== idx));
+                              setUploadProgress(uploadProgress.filter((_, i) => i !== idx));
+                              setVirusScanStatus(virusScanStatus.filter((_, i) => i !== idx));
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
                   {/* Settings */}
@@ -157,10 +200,13 @@ export default function FilesPage() {
                     )}
                   </div>
 
-                  <Button 
-                    onClick={() => setStage('captcha')}
+                  <Button
+                    onClick={() => {
+                      setStage('captcha');
+                      console.log('hCaptcha sitekey:', process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY);
+                    }}
                     className="w-full hover:scale-105 transition-transform"
-                    disabled={selectedFile.size > 700 * 1024 * 1024}
+                    disabled={selectedFiles.some(file => file.size > 700 * 1024 * 1024)}
                   >
                     <Upload className="h-4 w-4 mr-2" />
                     Continue to Upload
@@ -171,40 +217,43 @@ export default function FilesPage() {
           </div>
         )}
 
-        {stage === 'uploading' && selectedFile && (
+        {stage === 'uploading' && selectedFiles.length > 0 && (
           <Card className="bg-card/50 border-border/50">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Upload className="h-5 w-5 mr-2" />
-                Uploading {selectedFile.name}
+                Uploading Files
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Upload Progress</span>
-                  <span>{Math.round(uploadProgress)}%</span>
-                </div>
-                <Progress value={uploadProgress} className="h-2" />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Shield className="h-4 w-4" />
-                <span className="text-sm">
-                  {virusScanStatus === 'scanning' && 'Scanning for viruses...'}
-                  {virusScanStatus === 'clean' && (
-                    <span className="text-green-600 flex items-center">
-                      <Check className="h-4 w-4 mr-1" />
-                      File is clean and safe
-                    </span>
-                  )}
-                  {virusScanStatus === 'infected' && (
-                    <span className="text-red-600 flex items-center">
-                      <AlertTriangle className="h-4 w-4 mr-1" />
-                      Virus detected - upload blocked
-                    </span>
-                  )}
-                </span>
+              <div className="space-y-4">
+                {selectedFiles.map((file, idx) => (
+                  <div key={file.name + file.size} className="mb-2">
+                    <div className="flex justify-between text-sm">
+                      <span>{file.name}</span>
+                      <span>{Math.round(uploadProgress[idx] || 0)}%</span>
+                    </div>
+                    <Progress value={uploadProgress[idx] || 0} className="h-2" />
+                    <div className="flex items-center space-x-2 mt-1">
+                      <Shield className="h-4 w-4" />
+                      <span className="text-sm">
+                        {virusScanStatus[idx] === 'scanning' && 'Scanning for viruses...'}
+                        {virusScanStatus[idx] === 'clean' && (
+                          <span className="text-green-600 flex items-center">
+                            <Check className="h-4 w-4 mr-1" />
+                            File is clean and safe
+                          </span>
+                        )}
+                        {virusScanStatus[idx] === 'infected' && (
+                          <span className="text-red-600 flex items-center">
+                            <AlertTriangle className="h-4 w-4 mr-1" />
+                            Virus detected - upload blocked
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -212,17 +261,17 @@ export default function FilesPage() {
 
         <CaptchaModal 
           isOpen={stage === 'captcha'}
-          fileName={selectedFile?.name || ''}
-          fileSize={selectedFile?.size || 0}
+          fileName={selectedFiles.length === 1 ? selectedFiles[0].name : selectedFiles.length > 1 ? `${selectedFiles.length} files` : ''}
+          fileSize={selectedFiles.reduce((acc, f) => acc + f.size, 0)}
           onComplete={handleCaptchaComplete}
           onClose={() => setStage('select')}
         />
 
         <LinkResultModal
           isOpen={stage === 'complete'}
-          downloadLink={downloadLink}
-          editToken={editToken}
-          fileName={selectedFile?.name || ''}
+          downloadLink={downloadLinks.length === 1 ? downloadLinks[0] : ''}
+          editToken={editTokens.length === 1 ? editTokens[0] : ''}
+          fileName={selectedFiles.length === 1 ? selectedFiles[0].name : selectedFiles.length > 1 ? `${selectedFiles.length} files` : ''}
           onClose={() => router.push('/')}
         />
       </div>

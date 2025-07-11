@@ -1,4 +1,4 @@
 api setup completet
-captcha not working
-file not uploading
+captcha not working  --> captcha working
+file not uploading --> multiple file selection, upload remaining
 chat not chatting

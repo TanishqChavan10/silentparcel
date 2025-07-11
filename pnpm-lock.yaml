@@ -203,6 +203,9 @@ importers:
       react-dom:
         specifier: 18.2.0
         version: 18.2.0(react@18.2.0)
+      react-hcaptcha:
+        specifier: ^0.1.1
+        version: 0.1.1(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       react-hook-form:
         specifier: ^7.53.0
         version: 7.60.0(react@18.2.0)
@@ -2903,6 +2906,13 @@ packages:
     resolution: {integrity: sha512-6IMTriUmvsjHUjNtEDudZfuDQUoWXVxKHhlEGSk81n4YFS+r/Kl99wXiwlVXtPBtJenozv2P+hxDsw9eA7Xo6g==}
     peerDependencies:
       react: ^18.2.0
+
+  react-hcaptcha@0.1.1:
+    resolution: {integrity: sha512-p0s7uDOZAh28dbcmP2bXsox2NmIwQ6OtDTgjCYwfe49kHeCU67Omma1DhzYiGWQJRC6eTUZEikjsm+WT7bmy2g==}
+    deprecated: Deprecated in favor of https://www.npmjs.com/package/@hcaptcha/react-hcaptcha
+    peerDependencies:
+      react: ^16.4.1
+      react-dom: ^16.4.1
 
   react-hook-form@7.60.0:
     resolution: {integrity: sha512-SBrYOvMbDB7cV8ZfNpaiLcgjH/a1c7aK0lK+aNigpf4xWLO8q+o4tcvVurv3c4EOyzn/3dCsYt4GKD42VvJ/+A==}
@@ -6374,6 +6384,11 @@ snapshots:
       loose-envify: 1.4.0
       react: 18.2.0
       scheduler: 0.23.2
+
+  react-hcaptcha@0.1.1(react-dom@18.2.0(react@18.2.0))(react@18.2.0):
+    dependencies:
+      react: 18.2.0
+      react-dom: 18.2.0(react@18.2.0)
 
   react-hook-form@7.60.0(react@18.2.0):
     dependencies:
