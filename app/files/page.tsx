@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Upload, FileText, Lock, Shield, Check, AlertTriangle, Eye, X } from 'lucide-react';
+import { ArrowLeft, Upload, FileText, Lock, Shield, Check, AlertTriangle, Eye, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -15,8 +15,11 @@ import Link from 'next/link';
 import { FileDropzone } from '@/components/file-dropzone';
 import { CaptchaModal } from '@/components/captcha-modal';
 import { LinkResultModal } from '@/components/link-result-modal';
+import { storage, BUCKETS } from '@/lib/appwrite';
+import { ID } from 'appwrite';
+import { Readable } from 'stream';
 
-type UploadStage = 'select' | 'captcha' | 'uploading' | 'complete';
+type UploadStage = 'select' | 'captcha' | 'uploading' | 'complete' | 'virus-error';
 
 interface FileData {
   name: string;
@@ -35,6 +38,7 @@ export default function FilesPage() {
   const [password, setPassword] = useState('');
   const [downloadLinks, setDownloadLinks] = useState<string[]>([]);
   const [editTokens, setEditTokens] = useState<string[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handleFileSelect = useCallback((files: File[]) => {
     const fileDataArr = files.map(file => ({
@@ -48,49 +52,93 @@ export default function FilesPage() {
     setVirusScanStatus(new Array(fileDataArr.length).fill(null));
   }, []);
 
-  const handleCaptchaComplete = () => {
-    setStage('uploading');
-    simulateUpload();
-  };
-
-  const simulateUpload = () => {
-    const progressArr = [...uploadProgress];
-    const statusArr = [...virusScanStatus];
+  const uploadFilesToServer = async () => {
+    setVirusScanStatus(selectedFiles.map(() => 'scanning'));
+    setUploadProgress(selectedFiles.map(() => 0));
+    setUploadError(null);
     const linksArr: string[] = [];
     const tokensArr: string[] = [];
-    selectedFiles.forEach((file, idx) => {
-      statusArr[idx] = 'scanning';
-    });
-    setVirusScanStatus([...statusArr]);
-    let progress = [...progressArr];
-    const interval = setInterval(() => {
-      let allDone = true;
-      for (let i = 0; i < selectedFiles.length; i++) {
-        if (progress[i] < 100) {
-          progress[i] += Math.random() * 15;
-          if (progress[i] >= 100) {
-            progress[i] = 100;
-            statusArr[i] = 'clean';
-            linksArr[i] = `https://silentparcel.vercel.app/files/${Math.random().toString(36).substring(2, 12)}`;
-            tokensArr[i] = `edit_token_${Math.random().toString(36).substring(2, 8)}`;
-          } else {
-            allDone = false;
-          }
+    let virusDetected = false;
+
+    for (let idx = 0; idx < selectedFiles.length; idx++) {
+      const file = selectedFiles[idx];
+      const formData = new FormData();
+      formData.append('file', file.file);
+      if (passwordProtected && password) {
+        formData.append('password', password);
+      }
+      setUploadProgress((prev) => {
+        const arr = [...prev];
+        arr[idx] = 10;
+        return arr;
+      });
+      try {
+        const res = await fetch('/api/files/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await res.json();
+        if (res.ok && data.downloadUrl && data.editUrl) {
+          linksArr[idx] = data.downloadUrl;
+          tokensArr[idx] = data.editUrl.split('/').pop();
+          setVirusScanStatus((prev) => {
+            const arr = [...prev];
+            arr[idx] = 'clean';
+            return arr;
+          });
+        } else {
+          linksArr[idx] = '';
+          tokensArr[idx] = '';
+          setVirusScanStatus((prev) => {
+            const arr = [...prev];
+            arr[idx] = 'infected';
+            return arr;
+          });
+          virusDetected = true;
+          setUploadError(data.error || 'File contains a virus and cannot be shared.');
+          break;
         }
+        setUploadProgress((prev) => {
+          const arr = [...prev];
+          arr[idx] = 100;
+          return arr;
+        });
+      } catch (err) {
+        linksArr[idx] = '';
+        tokensArr[idx] = '';
+        setVirusScanStatus((prev) => {
+          const arr = [...prev];
+          arr[idx] = 'infected';
+          return arr;
+        });
+        virusDetected = true;
+        setUploadError('File contains a virus and cannot be shared.');
+        break;
       }
-      setUploadProgress([...progress]);
-      setVirusScanStatus([...statusArr]);
-      if (progress.every(p => p >= 100)) {
-        clearInterval(interval);
-        setDownloadLinks(
-          selectedFiles.map((_, i) => linksArr[i] || `https://silentparcel.vercel.app/files/${Math.random().toString(36).substring(2, 12)}`)
-        );
-        setEditTokens(
-          selectedFiles.map((_, i) => tokensArr[i] || `edit_token_${Math.random().toString(36).substring(2, 8)}`)
-        );
-        setTimeout(() => setStage('complete'), 500);
-      }
-    }, 200);
+    }
+    if (!virusDetected) {
+      setDownloadLinks(linksArr);
+      setEditTokens(tokensArr);
+      setTimeout(() => setStage('complete'), 500);
+    } else {
+      setStage('virus-error');
+    }
+  };
+
+  const handleCaptchaComplete = () => {
+    setStage('uploading');
+    uploadFilesToServer();
+  };
+
+  const handleBackToSelect = () => {
+    setStage('select');
+    setSelectedFiles([]);
+    setUploadProgress([]);
+    setVirusScanStatus([]);
+    setDownloadLinks([]);
+    setEditTokens([]);
+    setUploadError(null);
+    setPassword('');
   };
 
   const formatFileSize = (bytes: number) => {
@@ -217,12 +265,12 @@ export default function FilesPage() {
           </div>
         )}
 
-        {stage === 'uploading' && selectedFiles.length > 0 && (
+        {stage === 'uploading' && selectedFiles.length > 0 && !uploadError && (
           <Card className="bg-card/50 border-border/50">
             <CardHeader>
               <CardTitle className="flex items-center">
-                <Upload className="h-5 w-5 mr-2" />
-                Uploading Files
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                Uploading & Scanning Files
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -255,6 +303,25 @@ export default function FilesPage() {
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {stage === 'virus-error' && uploadError && (
+          <Card className="bg-card/50 border-border/50">
+            <CardHeader>
+              <CardTitle className="flex items-center text-red-600">
+                <AlertTriangle className="h-5 w-5 mr-2" />
+                Error
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center text-red-600 font-semibold">
+                {uploadError}
+              </div>
+              <Button onClick={handleBackToSelect} className="w-full hover:scale-105 transition-transform">
+                Go Back to File Upload
+              </Button>
             </CardContent>
           </Card>
         )}

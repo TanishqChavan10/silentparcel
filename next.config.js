@@ -11,6 +11,11 @@ const nextConfig = {
     serverComponentsExternalPackages: ['ioredis'],
   },
   webpack: (config, { isServer }) => {
+    config.ignoreWarnings = [
+      (warning) =>
+        typeof warning.message === 'string' &&
+        warning.message.includes('Critical dependency: the request of a dependency is an expression')
+    ];  // this will suppress the warning for supabase
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

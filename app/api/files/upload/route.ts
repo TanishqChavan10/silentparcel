@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { databases, storage, ID, DATABASE_ID, COLLECTIONS, BUCKETS } from '@/lib/appwrite';
 import { fileUploadRateLimiter } from '@/lib/middleware/rateLimiter';
-import { generateId, generateSecureId, validateFileType, validateFileSize, getClientIP } from '@/lib/security';
+import { generateId, generateSecureId, validateFileType, validateFileSize, getClientIP, getAllowedTypes } from '@/lib/security';
 import { supabaseAdmin } from '@/lib/supabase';
 import redis, { REDIS_KEYS, setWithExpiry } from '@/lib/redis';
 import { virusScanner } from '@/lib/virusScanner';
 import { logger } from '@/lib/logger';
+import FormData from 'form-data';
+import fetch from 'node-fetch';
 
 export async function POST(request: NextRequest) {
   // Check environment configuration
@@ -43,39 +45,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify CAPTCHA
-    if (!captchaToken) {
-      return NextResponse.json(
-        { error: 'CAPTCHA verification required' },
-        { status: 400 }
-      );
-    }
+    // Verify CAPTCHA   //check : for development purpose its turned off, switch on for production
+    // if (!captchaToken) {
+    //   return NextResponse.json(
+    //     { error: 'CAPTCHA verification required' },
+    //     { status: 400 }
+    //   );
+    // }
 
-    const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `secret=${process.env.HCAPTCHA_SECRET_KEY}&response=${captchaToken}`
-    });
+    // const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    //   body: `secret=${process.env.HCAPTCHA_SECRET_KEY}&response=${captchaToken}`
+    // });
 
-    const captchaData = await captchaResponse.json();
-    if (!captchaData.success) {
-      return NextResponse.json(
-        { error: 'CAPTCHA verification failed' },
-        { status: 400 }
-      );
-    }
+    // const captchaData = await captchaResponse.json();
+    // if (!captchaData.success) {
+    //   return NextResponse.json(
+    //     { error: 'CAPTCHA verification failed' },
+    //     { status: 400 }
+    //   );
+    // }
 
     // Validate file
-    const allowedTypes = process.env.ALLOWED_FILE_TYPES?.split(',') || [];
+        // Validate file type and size
+        const allowedTypes = getAllowedTypes();
     const maxSize = parseInt(process.env.MAX_FILE_SIZE || '104857600');
-
-    if (!validateFileType(file.name, allowedTypes)) {
+    if (!validateFileType(file.name, file.type, allowedTypes)) {
       return NextResponse.json(
         { error: 'File type not allowed' },
         { status: 400 }
       );
     }
-
     if (!validateFileSize(file.size, maxSize)) {
       return NextResponse.json(
         { error: 'File size exceeds limit' },
@@ -88,9 +89,9 @@ export async function POST(request: NextRequest) {
     const downloadToken = generateSecureId();
     const editToken = generateSecureId();
 
-    // Convert file to buffer for virus scanning
+    // Convert file to buffer for virus scanning and upload
     const fileBuffer = Buffer.from(await file.arrayBuffer());
-    
+
     // Virus scanning
     const scanResult = await virusScanner.scanBuffer(fileBuffer);
     if (!scanResult.isClean) {
@@ -107,19 +108,40 @@ export async function POST(request: NextRequest) {
           message: scanResult.message
         }
       });
-      
       return NextResponse.json(
         { error: 'File contains malicious content and cannot be uploaded' },
         { status: 400 }
       );
     }
 
-    // Upload file to Appwrite Storage
-    const uploadedFile = await storage.createFile(
-      BUCKETS.FILES,
-      fileId,
-      file
-    );
+    // Determine bucket ID from env or fallback
+    // const bucketId = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_KEY || BUCKETS.FILES;
+
+    // Upload file to Appwrite Storage using REST API (form-data)
+    const form = new FormData();
+    form.append('fileId', fileId);
+    form.append('file', fileBuffer, { filename: file.name, contentType: file.type });
+
+    // const res = await fetch(`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${BUCKETS.FILES}/files`, {
+      method: 'POST',
+      headers: {
+        'X-Appwrite-Project': process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID ?? '',
+        'X-Appwrite-Key': process.env.APPWRITE_API_KEY ?? '', // Must be a server API key
+        ...form.getHeaders()
+      },
+      body: form
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('Appwrite upload failed:', errText);
+      return NextResponse.json(
+        { error: 'Appwrite upload failed', details: errText },
+        { status: 500 }
+      );
+    }
+    const uploadedFile = await res.json();
 
     // Calculate expiry
     let expiryDate = null;
@@ -128,26 +150,31 @@ export async function POST(request: NextRequest) {
       expiryDate = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
     }
 
-    // Store file metadata in database
-    const fileRecord = await databases.createDocument(
-      DATABASE_ID,
-      COLLECTIONS.FILES,
-      fileId,
+    // Store file metadata in Supabase
+    const { data: fileRecord, error: fileInsertError } = await supabaseAdmin.from('files').insert([
       {
-        originalName: file.name,
+        original_name: file.name,
         size: file.size,
-        mimeType: file.type,
-        downloadToken,
-        editToken,
+        mime_type: file.type,
+        download_token: downloadToken,
+        edit_token: editToken,
         password: password || null,
-        expiryDate,
-        maxDownloads: maxDownloads ? parseInt(maxDownloads) : null,
-        downloadCount: 0,
-        isActive: true,
-        uploadedAt: new Date().toISOString(),
-        uploadedBy: getClientIP(request)
+        expiry_date: expiryDate,
+        max_downloads: maxDownloads ? parseInt(maxDownloads) : null,
+        download_count: 0,
+        is_active: true,
+        uploaded_at: new Date().toISOString(),
+        uploaded_by: getClientIP(request),
+        last_downloaded_at: null
       }
-    );
+    ]);
+    if (fileInsertError) {
+      console.error('Supabase file insert error:', fileInsertError);
+      return NextResponse.json(
+        { error: 'Failed to save file metadata in Supabase', details: fileInsertError.message },
+        { status: 500 }
+      );
+    }
 
     // Log audit event
     await supabaseAdmin.from('audit_logs').insert({

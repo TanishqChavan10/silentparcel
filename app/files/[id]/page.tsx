@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/theme-toggle';
 import Link from 'next/link';
+import { storage, BUCKETS } from '@/lib/appwrite';
+import { ID } from 'appwrite';
 
 interface FileInfo {
   name: string;
@@ -33,6 +35,12 @@ export default function FileDownloadPage() {
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
   const [editToken, setEditToken] = useState('');
   const [showEditToken, setShowEditToken] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<number[]>([]);
+  const [virusScanStatus, setVirusScanStatus] = useState<string[]>([]);
+  const [downloadLinks, setDownloadLinks] = useState<string[]>([]);
+  const [editTokens, setEditTokens] = useState<string[]>([]);
+  const [stage, setStage] = useState<'captcha' | 'uploading' | 'complete'>('captcha');
 
   const fileId = params.id as string;
 
@@ -50,7 +58,7 @@ export default function FileDownloadPage() {
           uploadDate: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
           downloadCount: 3,
           maxDownloads: 10,
-          expiryDate: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000), // 28 days from now
+          expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 28 days from now
           isPasswordProtected: true,
           virusScanStatus: 'clean',
           files: [
@@ -104,6 +112,46 @@ export default function FileDownloadPage() {
   const getFileIcon = (type: string) => {
     if (type.includes('zip') || type.includes('archive')) return Archive;
     return FileText;
+  };
+
+  const uploadFilesToAppwrite = async () => {
+    setVirusScanStatus(selectedFiles.map(() => 'scanning'));
+    const progressArr = [...uploadProgress];
+    const statusArr = [...virusScanStatus];
+    const linksArr: string[] = [];
+    const tokensArr: string[] = [];
+
+    for (let idx = 0; idx < selectedFiles.length; idx++) {
+      const file = selectedFiles[idx];
+      try {
+        // Upload to Appwrite Storage
+        const response = await storage.createFile(
+          BUCKETS.FILES,
+          ID.unique(),
+          file // Use the File object directly, not file.file
+        );
+        // You can get the file ID from response.$id
+        // Optionally, generate a download link here
+        linksArr[idx] = `https://cloud.appwrite.io/v1/storage/buckets/${BUCKETS.FILES}/files/${response.$id}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
+        tokensArr[idx] = `edit_token_${Math.random().toString(36).substring(2, 8)}`;
+        statusArr[idx] = 'clean';
+        progressArr[idx] = 100;
+      } catch (err) {
+        statusArr[idx] = 'infected'; // Or handle error differently
+        progressArr[idx] = 100;
+      }
+      setUploadProgress([...progressArr]);
+      setVirusScanStatus([...statusArr]);
+    }
+
+    setDownloadLinks(linksArr);
+    setEditTokens(tokensArr);
+    setTimeout(() => setStage('complete'), 500);
+  };
+
+  const handleCaptchaComplete = () => {
+    setStage('uploading');
+    uploadFilesToAppwrite();
   };
 
   if (!fileExists || !fileInfo) {

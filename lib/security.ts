@@ -51,14 +51,24 @@ export const generateRoomPassword = (): string => {
 };
 
 // File validation
-export const validateFileType = (fileName: string, allowedTypes: string[]): boolean => {
+export const getAllowedTypes = (): string[] => {
+  return process.env.ALLOWED_FILE_TYPES?.split(',').map(t => t.trim().toLowerCase()) || [];
+};
+
+export const validateFileType = (fileName: string, mimeType: string, allowedTypes: string[]): boolean => {
   const fileExtension = fileName.split('.').pop()?.toLowerCase();
   return allowedTypes.some(type => {
-    if (type.includes('*')) {
-      const baseType = type.split('/')[0];
-      return fileName.includes(baseType);
+    type = type.trim().toLowerCase();
+    if (type.includes('/')) {
+      // MIME type match (supports wildcards like image/*)
+      if (type.endsWith('/*')) {
+        const baseType = type.split('/')[0];
+        return mimeType.startsWith(baseType + '/');
+      }
+      return mimeType === type;
     }
-    return type.includes(fileExtension!);
+    // Extension match
+    return fileExtension === type;
   });
 };
 
@@ -67,12 +77,24 @@ export const validateFileSize = (size: number, maxSize: number): boolean => {
 };
 
 // IP address extraction
+// export const getClientIP = (req: any): string => {
+//   return req.headers['x-forwarded-for'] || 
+//          req.connection.remoteAddress || 
+//          req.socket.remoteAddress ||
+//          (req.connection.socket ? req.connection.socket.remoteAddress : null) ||
+//          '127.0.0.1';
+// };
+
 export const getClientIP = (req: any): string => {
-  return req.headers['x-forwarded-for'] || 
-         req.connection.remoteAddress || 
-         req.socket.remoteAddress ||
-         (req.connection.socket ? req.connection.socket.remoteAddress : null) ||
-         '127.0.0.1';
+  // Next.js API routes: req.headers.get for edge, req.headers for node
+  if (typeof req.headers?.get === 'function') {
+    // Edge API route (NextRequest)
+    return req.headers.get('x-forwarded-for') || '127.0.0.1';
+  }
+  if (req.headers && typeof req.headers === 'object') {
+    return req.headers['x-forwarded-for'] || '127.0.0.1';
+  }
+  return '127.0.0.1';
 };
 
 // Generate avatar URL
@@ -84,7 +106,7 @@ export const generateAvatarUrl = (seed: string): string => {
 export const encrypt = (text: string): string => {
   const key = crypto.scryptSync(process.env.ENCRYPTION_KEY!, 'salt', 32);
   const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+  const cipher = crypto.createCipheriv('aes-256-cbc', key as unknown as Uint8Array, iv as unknown as Uint8Array);
   
   let encrypted = cipher.update(text, 'utf8', 'hex');
   encrypted += cipher.final('hex');
@@ -97,7 +119,7 @@ export const decrypt = (encryptedText: string): string => {
   const [ivHex, encrypted] = encryptedText.split(':');
   
   const iv = Buffer.from(ivHex, 'hex');
-  const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+  const decipher = crypto.createDecipheriv('aes-256-cbc', key as unknown as Uint8Array, iv as unknown as Uint8Array);
   
   let decrypted = decipher.update(encrypted, 'hex', 'utf8');
   decrypted += decipher.final('utf8');

@@ -50,13 +50,13 @@ export class VirusScanner {
         // Send file size and data
         const sizeBuffer = Buffer.alloc(4);
         sizeBuffer.writeUInt32BE(buffer.length, 0);
-        socket.write(sizeBuffer);
-        socket.write(buffer);
+        socket.write(sizeBuffer as unknown as Uint8Array);
+        socket.write(buffer as unknown as Uint8Array);
         
         // End stream
         const endBuffer = Buffer.alloc(4);
         endBuffer.writeUInt32BE(0, 0);
-        socket.write(endBuffer);
+        socket.write(endBuffer as unknown as Uint8Array);
       });
 
       socket.on('data', (data) => {
@@ -121,7 +121,7 @@ export class VirusScanner {
     }
 
     // Calculate file hash for known malware database (placeholder)
-    const hash = createHash('sha256').update(buffer).digest('hex');
+    const hash = createHash('sha256').update(buffer as unknown as Uint8Array).digest('hex');
     
     // In production, you would check this hash against a malware database
     // For now, we'll just log it for audit purposes
