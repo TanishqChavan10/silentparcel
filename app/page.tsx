@@ -112,7 +112,7 @@ export default function Home() {
                   <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center mr-3 mt-0.5">
                     <div className="w-2 h-2 bg-primary rounded-full"></div>
                   </div>
-                  Drag & drop files up to 700MB
+                  Drag & drop files up to 50000 KB
                 </li>
                 <li className="flex items-start">
                   <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center mr-3 mt-0.5">
