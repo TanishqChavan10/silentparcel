@@ -68,7 +68,7 @@ export function FileDropzone({ onFileSelect, multiple = false }: FileDropzonePro
               : multiple ? 'Drag & drop your files' : 'Drag & drop your file'}
           </h3>
           <p className="text-muted-foreground mb-4">
-            or click to browse (max 700MB{multiple ? ' per file' : ''})
+            or click to browse (max 50000KB{multiple ? ' per file' : ''})
           </p>
         </div>
         

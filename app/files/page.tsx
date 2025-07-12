@@ -170,7 +170,7 @@ export default function FilesPage() {
             <div className="text-center">
               <h1 className="text-3xl font-bold mb-2">Upload a File</h1>
               <p className="text-muted-foreground">
-                Securely share files up to 700MB with automatic virus scanning
+                Securely share files up to 50000 with automatic virus scanning
               </p>
             </div>
 
@@ -195,8 +195,8 @@ export default function FilesPage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant={file.size > 700 * 1024 * 1024 ? 'destructive' : 'secondary'}>
-                            {file.size > 700 * 1024 * 1024 ? 'Too Large' : 'Valid'}
+                          <Badge variant={file.size > 50 * 1024 * 1024 ? 'destructive' : 'secondary'}>
+                            {file.size > 50 * 1024 * 1024 ? 'Too Large' : 'Valid'}
                           </Badge>
                           <button
                             type="button"
@@ -254,7 +254,7 @@ export default function FilesPage() {
                       console.log('hCaptcha sitekey:', process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY);
                     }}
                     className="w-full hover:scale-105 transition-transform"
-                    disabled={selectedFiles.some(file => file.size > 700 * 1024 * 1024)}
+                    disabled={selectedFiles.some(file => file.size > 50 * 1024 * 1024)}
                   >
                     <Upload className="h-4 w-4 mr-2" />
                     Continue to Upload

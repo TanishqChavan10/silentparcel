@@ -1,4 +1,4 @@
-api setup completet
-captcha not working  --> captcha working
-file not uploading --> multiple file selection, upload remaining
+api setup complete --> all done 
+captcha not working  --> captcha working (kept on hold due to development)
+file not uploading --> multiple file selection, upload remaining --> upload success, fetch remaining
 chat not chatting
