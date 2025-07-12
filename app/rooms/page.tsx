@@ -96,7 +96,7 @@ export default function RoomsPage() {
                   <Label htmlFor="room-link">Room Link or Password</Label>
                   <Input
                     id="room-link"
-                    placeholder="https://secureshare.app/rooms/xyz123 or password"
+                    placeholder="https://silentparcel.vercel.app/rooms/xyz123 or password"
                     value={joinPassword}
                     onChange={(e) => setJoinPassword(e.target.value)}
                     className="bg-background/50"

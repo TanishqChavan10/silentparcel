@@ -4,10 +4,26 @@ import { verifyPassword, getClientIP } from '@/lib/security';
 import { supabaseAdmin } from '@/lib/supabase';
 import redis, { REDIS_KEYS } from '@/lib/redis';
 
+// Check if we're in a proper environment
+function isProperlyConfigured() {
+  return process.env.NEXT_PUBLIC_SUPABASE_URL && 
+         process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co' &&
+         process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT &&
+         process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT !== 'https://placeholder.appwrite.io/v1';
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { token: string } }
 ) {
+  // Check environment configuration
+  if (!isProperlyConfigured()) {
+    return NextResponse.json(
+      { error: 'Service not properly configured' },
+      { status: 503 }
+    );
+  }
+
   try {
     const { token } = params;
     const { searchParams } = new URL(request.url);
@@ -85,7 +101,17 @@ export async function GET(
     }
 
     // Get file from storage
-    const fileData = await storage.getFileDownload(BUCKETS.FILES, fileRecord.$id);
+    const fileUrl = await storage.getFileDownload(BUCKETS.FILES, fileRecord.$id);
+    let fileBuffer;
+    if (typeof fileUrl === 'string') {
+      // Fetch the file data from the URL
+      const fetchRes = await fetch(fileUrl);
+      fileBuffer = Buffer.from(await fetchRes.arrayBuffer());
+    } else if (fileUrl instanceof Buffer) {
+      fileBuffer = fileUrl;
+    } else {
+      throw new Error('Unexpected file download response');
+    }
 
     // Update download count
     await databases.updateDocument(
@@ -112,7 +138,7 @@ export async function GET(
     });
 
     // Return file
-    const response = new NextResponse(fileData);
+    const response = new NextResponse(fileBuffer);
     response.headers.set('Content-Type', fileRecord.mimeType);
     response.headers.set('Content-Disposition', `attachment; filename="${fileRecord.originalName}"`);
     

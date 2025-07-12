@@ -1,19 +1,37 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+// Environment variables with safe fallbacks
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://example.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'example-anon-key';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'example-service-key';
 
-// Client for public operations
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create clients with proper error handling
+let supabase: any = null;
+let supabaseAdmin: any = null;
 
-// Admin client for server-side operations
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
+try {
+  // Client for public operations
+  supabase = createClient(supabaseUrl, supabaseAnonKey);
+  
+  // Admin client for server-side operations
+  supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+} catch (error) {
+  console.warn('Supabase client initialization failed:', error);
+  // Create mock clients for build time
+  supabase = {
+    from: () => ({ insert: () => Promise.resolve(), select: () => Promise.resolve([]) })
+  };
+  supabaseAdmin = {
+    from: () => ({ insert: () => Promise.resolve(), select: () => Promise.resolve([]) })
+  };
+}
+
+export { supabase, supabaseAdmin };
 
 // Types for audit logs
 export interface AuditLog {

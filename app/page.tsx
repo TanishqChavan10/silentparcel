@@ -14,7 +14,7 @@ export default function Home() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
             <Shield className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold">SecureShare</h1>
+            <h1 className="text-2xl font-bold">SilentParcel</h1>
           </div>
           
           <ThemeToggle />
@@ -88,7 +88,7 @@ export default function Home() {
                 </div>
                 <CardTitle>Zero Knowledge</CardTitle>
                 <CardDescription>
-                  We can't see your files or messages. End-to-end privacy guaranteed.
+                  We can&apos;t see your files or messages. End-to-end privacy guaranteed.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -174,7 +174,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="py-8 px-4 border-t border-border/40">
         <div className="container mx-auto text-center text-muted-foreground">
-          <p>&copy; 2025 SecureShare. Privacy-focused file sharing and ephemeral chat.</p>
+          <p>&copy; 2025 SilentParcel. Privacy-focused file sharing and ephemeral chat.</p>
         </div>
       </footer>
     </div>

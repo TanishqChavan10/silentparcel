@@ -6,10 +6,11 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 interface FileDropzoneProps {
-  onFileSelect: (file: File) => void;
+  onFileSelect: (files: File[]) => void;
+  multiple?: boolean;
 }
 
-export function FileDropzone({ onFileSelect }: FileDropzoneProps) {
+export function FileDropzone({ onFileSelect, multiple = false }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -25,19 +26,19 @@ export function FileDropzone({ onFileSelect }: FileDropzoneProps) {
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
-      onFileSelect(files[0]);
+      onFileSelect(multiple ? files : [files[0]]);
     }
-  }, [onFileSelect]);
+  }, [onFileSelect, multiple]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      onFileSelect(files[0]);
+      const fileArr = Array.from(files);
+      onFileSelect(multiple ? fileArr : [fileArr[0]]);
     }
-  }, [onFileSelect]);
+  }, [onFileSelect, multiple]);
 
   return (
     <Card className={`
@@ -62,10 +63,12 @@ export function FileDropzone({ onFileSelect }: FileDropzoneProps) {
         
         <div>
           <h3 className="text-lg font-semibold mb-2">
-            {isDragging ? 'Drop your file here' : 'Drag & drop your file'}
+            {isDragging 
+              ? multiple ? 'Drop your files here' : 'Drop your file here'
+              : multiple ? 'Drag & drop your files' : 'Drag & drop your file'}
           </h3>
           <p className="text-muted-foreground mb-4">
-            or click to browse (max 700MB)
+            or click to browse (max 700MB{multiple ? ' per file' : ''})
           </p>
         </div>
         
@@ -76,11 +79,12 @@ export function FileDropzone({ onFileSelect }: FileDropzoneProps) {
             className="hidden"
             id="file-input"
             accept="*/*"
+            multiple={multiple}
           />
           <Button asChild variant="outline" className="hover:scale-105 transition-transform">
             <label htmlFor="file-input" className="cursor-pointer">
               <FileText className="h-4 w-4 mr-2" />
-              Choose File
+              {multiple ? 'Choose Files' : 'Choose File'}
             </label>
           </Button>
         </div>

@@ -6,7 +6,7 @@ import { ThemeProvider } from '@/contexts/theme-context';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'SecureShare - Privacy-Focused File Sharing & Anonymous Chat',
+  title: 'SilentParcel - Privacy-Focused File Sharing & Anonymous Chat',
   description: 'Share files securely and chat anonymously with ephemeral rooms. No registration required.',
 };
 
@@ -20,7 +20,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider
           defaultTheme="dark"
-          storageKey="secureshare-theme"
+          storageKey="silentparcel-theme"
         >
           {children}
         </ThemeProvider>
