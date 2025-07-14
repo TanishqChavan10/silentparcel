@@ -1,4 +1,4 @@
 api setup complete --> all done 
 captcha not working  --> captcha working (kept on hold due to development)
-file not uploading --> multiple file selection, upload remaining --> upload success, fetch remaining
+file not uploading --> multiple file selection, upload remaining --> upload success, fetch remaining --> fetch success, download error on device
 chat not chatting
