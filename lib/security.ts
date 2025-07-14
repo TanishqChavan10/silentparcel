@@ -36,7 +36,7 @@ export const generateId = (length: number = 21): string => {
   return nanoid(length);
 };
 
-export const generateSecureId = (length: number = 32): string => {
+export const generateSecureId = (length: number = 5): string => {
   return crypto.randomBytes(length).toString('hex');
 };
 

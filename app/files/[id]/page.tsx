@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { redirect, useParams } from 'next/navigation';
 import { ArrowLeft, Download, Lock, Shield, Clock, AlertTriangle, FileText, Archive, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,7 @@ interface FileInfo {
   isPasswordProtected: boolean;
   virusScanStatus: 'clean' | 'infected' | 'scanning';
   files?: { name: string; size: number }[]; // For archives
+  appwrite_id: string; // Appwrite file ID
 }
 
 export default function FileDownloadPage() {
@@ -45,35 +46,26 @@ export default function FileDownloadPage() {
   const fileId = params.id as string;
 
   useEffect(() => {
-    // Simulate file loading
-    const loadFile = () => {
-      // In a real app, this would be an API call
-      const exists = Math.random() > 0.1; // 90% chance file exists
-      
-      if (exists) {
+    const fetchFileInfo = async () => {
+      const res = await fetch(`/api/files/download/${fileId}?meta=1`);
+      if (res.ok) {
+        const data = await res.json();
         setFileInfo({
-          name: 'project-files.zip',
-          size: 2.5 * 1024 * 1024, // 2.5MB
-          type: 'application/zip',
-          uploadDate: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-          downloadCount: 3,
-          maxDownloads: 10,
-          expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 28 days from now
-          isPasswordProtected: true,
-          virusScanStatus: 'clean',
-          files: [
-            { name: 'README.md', size: 1024 },
-            { name: 'src/main.js', size: 5120 },
-            { name: 'package.json', size: 512 },
-            { name: 'assets/logo.png', size: 2048000 }
-          ]
+          name: data.name,
+          size: data.size,
+          type: data.type,
+          uploadDate: new Date(data.uploadDate),
+          downloadCount: data.downloadCount,
+          maxDownloads: data.maxDownloads,
+          expiryDate: data.expiryDate ? new Date(data.expiryDate) : new Date(0),
+          isPasswordProtected: data.isPasswordProtected,
+          virusScanStatus: data.virusScanStatus,
+          appwrite_id: data.appwrite_id,
         });
-      } else {
-        setFileExists(false);
+        setFileExists(true);
       }
     };
-
-    loadFile();
+    fetchFileInfo();
   }, [fileId]);
 
   const formatFileSize = (bytes: number) => {
@@ -130,9 +122,8 @@ export default function FileDownloadPage() {
           ID.unique(),
           file // Use the File object directly, not file.file
         );
-        // You can get the file ID from response.$id
-        // Optionally, generate a download link here
-        linksArr[idx] = `https://cloud.appwrite.io/v1/storage/buckets/${BUCKETS.FILES}/files/${response.$id}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
+        // Instead of using response.$id, use the appwrite_id from Supabase metadata
+        linksArr[idx] = `https://syd.cloud.appwrite.io/v1/storage/buckets/${BUCKETS.FILES}/files/${fileInfo?.appwrite_id}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
         tokensArr[idx] = `edit_token_${Math.random().toString(36).substring(2, 8)}`;
         statusArr[idx] = 'clean';
         progressArr[idx] = 100;
@@ -275,7 +266,8 @@ export default function FileDownloadPage() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => setShowEditToken(!showEditToken)}
+                  // onClick={() => setShowEditToken(!showEditToken)}
+                  onClick={() => window.location.href = `/files/manage/${fileId}`}
                   className="hover:scale-105 transition-transform"
                 >
                   {showEditToken ? 'Hide' : 'Manage File'}
@@ -378,14 +370,19 @@ export default function FileDownloadPage() {
             <Card className="bg-card/50 border-border/50">
               <CardContent className="pt-6">
                 <div className="space-y-3">
-                  <Button 
-                    onClick={() => handleDownload('zip')}
-                    disabled={downloadStarted}
-                    className="w-full hover:scale-105 transition-transform"
-                    size="lg"
+                  <Button
+                    asChild
+                    className="w-full"
                   >
-                    <Download className="h-5 w-5 mr-2" />
-                    {downloadStarted ? 'Downloading...' : `Download ${fileInfo.name}`}
+                    <a
+                      href={`/api/files/download/${fileId}${fileInfo?.isPasswordProtected ? `?password=${encodeURIComponent(password)}` : ''}`}
+                      download={fileInfo?.name}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download
+                    </a>
                   </Button>
                   
                   {fileInfo.files && fileInfo.files.length > 1 && (

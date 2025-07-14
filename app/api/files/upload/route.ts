@@ -24,12 +24,12 @@ export async function POST(request: NextRequest) {
   try {
     // Rate limiting
     const rateLimitResult = await fileUploadRateLimiter.isAllowed(request);
-    if (!rateLimitResult.allowed) {
-      return NextResponse.json(
-        { error: 'Too many upload attempts. Please try again later.' },
-        { status: 429 }
-      );
-    }
+    // if (!rateLimitResult.allowed) {
+    //   return NextResponse.json(
+    //     { error: 'Too many upload attempts. Please try again later.' },
+    //     { status: 429 }
+    //   );
+    // }    // check: keeping it off for development perspective
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    const uploadedFile = await res.json();
+    let uploadedFile: any = await res.json();
 
     // Calculate expiry
     let expiryDate = null;
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
       expiryDate = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
     }
 
-    // Store file metadata in Supabase
+    // Store file metadata in Supabase, including Appwrite file UID
     const { data: fileRecord, error: fileInsertError } = await supabaseAdmin.from('files').insert([
       {
         original_name: file.name,
@@ -165,7 +165,8 @@ export async function POST(request: NextRequest) {
         is_active: true,
         uploaded_at: new Date().toISOString(),
         uploaded_by: getClientIP(request),
-        last_downloaded_at: null
+        last_downloaded_at: null,
+        appwrite_id: uploadedFile.$id // Store Appwrite file UID
       }
     ]);
     if (fileInsertError) {
