@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { nanoid } from 'nanoid';
-import crypto from 'crypto';
+import crypto, { randomUUID } from 'crypto';
 
 // Password hashing
 export const hashPassword = async (password: string): Promise<string> => {
@@ -34,7 +34,11 @@ export const verifyToken = (token: string): any => {
 // Generate unique IDs
 export const generateId = (length: number = 21): string => {
   return nanoid(length);
-};
+};  // was giving error so switching to randomUUID
+
+// export function generateId() {
+//   return randomUUID();
+// }  works for multiple files upload but failes to give link and token will need to change for that
 
 export const generateSecureId = (length: number = 5): string => {
   return crypto.randomBytes(length).toString('hex');
