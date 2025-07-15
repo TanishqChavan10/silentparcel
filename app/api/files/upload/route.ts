@@ -144,11 +144,7 @@ export async function POST(request: NextRequest) {
     let uploadedFile: any = await res.json();
 
     // Calculate expiry
-    let expiryDate = null;
-    if (expiresIn && expiresIn !== 'never') {
-      const hours = parseInt(expiresIn);
-      expiryDate = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
-    }
+    const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
     // Store file metadata in Supabase, including Appwrite file UID
     const { data: fileRecord, error: fileInsertError } = await supabaseAdmin.from('files').insert([
@@ -160,7 +156,7 @@ export async function POST(request: NextRequest) {
         edit_token: editToken,
         password: password || null,
         expiry_date: expiryDate,
-        max_downloads: maxDownloads ? parseInt(maxDownloads) : null,
+        max_downloads: maxDownloads ? parseInt(maxDownloads) : 10,
         download_count: 0,
         is_active: true,
         uploaded_at: new Date().toISOString(),

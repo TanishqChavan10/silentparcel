@@ -220,9 +220,9 @@ export default function FileDownloadPage() {
                 </div>
                 
                 <div className="flex flex-col items-end space-y-2">
-                  <Badge variant={fileInfo.virusScanStatus === 'clean' ? 'default' : 'destructive'}>
-                    <Shield className="h-3 w-3 mr-1" />
-                    {fileInfo.virusScanStatus === 'clean' ? 'Virus Free' : 'Infected'}
+                  <Badge variant="default" className="bg-green-100 text-green-800 border border-green-300">
+                    <Shield className="h-3 w-3 mr-1 text-green-600 bg-transparent" />
+                    Virus Free
                   </Badge>
                   {fileInfo.isPasswordProtected && (
                     <Badge variant="secondary">
