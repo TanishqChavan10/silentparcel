@@ -48,6 +48,7 @@
     "@uppy/progress-bar": "^3.0.4",
     "@uppy/react": "^3.2.2",
     "@uppy/xhr-upload": "^3.5.0",
+    "adm-zip": "^0.5.16",
     "appwrite": "^14.0.1",
     "autoprefixer": "10.4.15",
     "bcryptjs": "^2.4.3",
@@ -56,6 +57,7 @@
     "cmdk": "^1.0.0",
     "cors": "^2.8.5",
     "date-fns": "^3.6.0",
+    "dotenv": "^17.2.0",
     "embla-carousel-react": "^8.3.0",
     "eslint": "8.49.0",
     "eslint-config-next": "13.5.1",
@@ -71,6 +73,7 @@
     "nanoid": "^5.0.4",
     "next": "13.5.1",
     "next-themes": "^0.3.0",
+    "node-appwrite": "^17.1.0",
     "node-fetch": "^3.3.2",
     "postcss": "8.4.30",
     "rate-limiter-flexible": "^7.1.1",
@@ -92,6 +95,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
     "@types/formidable": "^3.4.5",

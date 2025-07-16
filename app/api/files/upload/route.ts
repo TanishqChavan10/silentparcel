@@ -8,6 +8,7 @@ import { virusScanner } from '@/lib/virusScanner';
 import { logger } from '@/lib/logger';
 import FormData from 'form-data';
 import fetch from 'node-fetch';
+import AdmZip from 'adm-zip';
 
 export async function POST(request: NextRequest) {
   // Check environment configuration
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // Rate limiting
-    const rateLimitResult = await fileUploadRateLimiter.isAllowed(request);
+    // const rateLimitResult = await fileUploadRateLimiter.isAllowed(request);
     // if (!rateLimitResult.allowed) {
     //   return NextResponse.json(
     //     { error: 'Too many upload attempts. Please try again later.' },
@@ -32,15 +33,37 @@ export async function POST(request: NextRequest) {
     // }    // check: keeping it off for development perspective
 
     const formData = await request.formData();
-    const file = formData.get('file') as File;
+    // Debug: log all formData keys and values
+    const debugEntries = Array.from(formData.entries());
+    console.log('FormData entries:', debugEntries.map(([k, v]) => [k, v instanceof File ? v.name : v]));
+    const files = formData.getAll('files') as File[];
+    let relPaths = formData.getAll('relativePaths') as string[];
+    console.log('Number of files received:', files.length);
+    if (files.length > 0) {
+      console.log('File types:', files.map(f => typeof f));
+      console.log('File names:', files.map(f => f && f.name));
+    }
     const password = formData.get('password') as string;
     const expiresIn = formData.get('expiresIn') as string;
     const maxDownloads = formData.get('maxDownloads') as string;
     const captchaToken = formData.get('captchaToken') as string;
 
-    if (!file) {
+    if (!files || files.length === 0) {
+      // Debug: log all formData entries if no files found
+      console.error('No files provided. FormData entries:', debugEntries);
       return NextResponse.json(
-        { error: 'No file provided' },
+        { error: 'No files provided', debug: debugEntries },
+        { status: 400 }
+      );
+    }
+    // Fallback: if relPaths is missing or count mismatch, use file.name for each file
+    if (!relPaths || relPaths.length !== files.length) {
+      relPaths = files.map(f => (f as any).webkitRelativePath || f.name);
+    }
+
+    if (!relPaths || relPaths.length !== files.length) {
+      return NextResponse.json(
+        { error: 'Relative paths missing or count mismatch' },
         { status: 400 }
       );
     }
@@ -71,58 +94,70 @@ export async function POST(request: NextRequest) {
         // Validate file type and size
         const allowedTypes = getAllowedTypes();
     const maxSize = parseInt(process.env.MAX_FILE_SIZE || '104857600');
-    if (!validateFileType(file.name, file.type, allowedTypes)) {
-      return NextResponse.json(
-        { error: 'File type not allowed' },
-        { status: 400 }
-      );
-    }
-    if (!validateFileSize(file.size, maxSize)) {
-      return NextResponse.json(
-        { error: 'File size exceeds limit' },
-        { status: 400 }
-      );
+    let totalSize = 0;
+    const subfileMetadata: any[] = [];
+    const fileBuffers: Buffer[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const relPath = relPaths[i];
+      if (!validateFileType(file.name, file.type, allowedTypes)) {
+        return NextResponse.json(
+          { error: `File type not allowed: ${file.name}` },
+          { status: 400 }
+        );
+      }
+      if (!validateFileSize(file.size, maxSize)) {
+        return NextResponse.json(
+          { error: `File size exceeds limit: ${file.name}` },
+          { status: 400 }
+        );
+      }
+      const fileBuffer = Buffer.from(await file.arrayBuffer());
+      // Virus scan each file
+      const scanResult = await virusScanner.scanBuffer(fileBuffer);
+      if (!scanResult.isClean) {
+        await supabaseAdmin.from('audit_logs').insert({
+          action: 'virus_detected',
+          resource_type: 'file',
+          resource_id: relPath,
+          ip_address: getClientIP(request),
+          user_agent: request.headers.get('user-agent'),
+          metadata: {
+            filename: file.name,
+            signature: scanResult.signature,
+            message: scanResult.message
+          }
+        });
+        return NextResponse.json(
+          { error: `File contains malicious content: ${file.name}` },
+          { status: 400 }
+        );
+      }
+      totalSize += file.size;
+      fileBuffers.push(fileBuffer);
+      subfileMetadata.push({
+        file_name: file.name,
+        file_path: relPath,
+        size: file.size,
+        mime_type: file.type,
+      });
     }
 
-    // Generate IDs
+    // Create ZIP archive in-memory
+    const zip = new AdmZip();
+    for (let i = 0; i < files.length; i++) {
+      zip.addFile(relPaths[i], fileBuffers[i]);
+    }
+    const zipBuffer = zip.toBuffer();
+    const zipName = `archive_${Date.now()}.zip`;
+
+    // Upload ZIP to Appwrite
     const fileId = generateId();
     const downloadToken = generateSecureId();
     const editToken = generateSecureId();
-
-    // Convert file to buffer for virus scanning and upload
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-
-    // Virus scanning
-    const scanResult = await virusScanner.scanBuffer(fileBuffer);
-    if (!scanResult.isClean) {
-      // Log security event
-      await supabaseAdmin.from('audit_logs').insert({
-        action: 'virus_detected',
-        resource_type: 'file',
-        resource_id: fileId,
-        ip_address: getClientIP(request),
-        user_agent: request.headers.get('user-agent'),
-        metadata: {
-          filename: file.name,
-          signature: scanResult.signature,
-          message: scanResult.message
-        }
-      });
-      return NextResponse.json(
-        { error: 'File contains malicious content and cannot be uploaded' },
-        { status: 400 }
-      );
-    }
-
-    // Determine bucket ID from env or fallback
-    // const bucketId = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_KEY || BUCKETS.FILES;
-
-    // Upload file to Appwrite Storage using REST API (form-data)
     const form = new FormData();
     form.append('fileId', fileId);
-    form.append('file', fileBuffer, { filename: file.name, contentType: file.type });
-
-    // const res = await fetch(`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files`, {
+    form.append('file', zipBuffer, { filename: zipName, contentType: 'application/zip' });
     const res = await fetch(`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${BUCKETS.FILES}/files`, {
       method: 'POST',
       headers: {
@@ -132,7 +167,6 @@ export async function POST(request: NextRequest) {
       },
       body: form
     });
-
     if (!res.ok) {
       const errText = await res.text();
       console.error('Appwrite upload failed:', errText);
@@ -147,11 +181,11 @@ export async function POST(request: NextRequest) {
     const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
     // Store file metadata in Supabase, including Appwrite file UID
-    const { data: fileRecord, error: fileInsertError } = await supabaseAdmin.from('files').insert([
+    const { data: fileRecord, error: fileInsertError } = await supabaseAdmin.from('zip_metadata').insert([
       {
-        original_name: file.name,
-        size: file.size,
-        mime_type: file.type,
+        original_name: zipName,
+        size: zipBuffer.length,
+        mime_type: 'application/zip',
         download_token: downloadToken,
         edit_token: editToken,
         password: password || null,
@@ -164,11 +198,32 @@ export async function POST(request: NextRequest) {
         last_downloaded_at: null,
         appwrite_id: uploadedFile.$id // Store Appwrite file UID
       }
-    ]);
+    ]).select().single();
     if (fileInsertError) {
-      console.error('Supabase file insert error:', fileInsertError);
+      logger.error('Supabase file insert error:', fileInsertError);
       return NextResponse.json(
         { error: 'Failed to save file metadata in Supabase', details: fileInsertError.message },
+        { status: 500 }
+      );
+    }
+    const zipId = fileRecord.id;
+
+    // Store subfile metadata in Supabase
+    const subfileRows = subfileMetadata.map(meta => ({
+      zip_id: zipId,
+      file_name: meta.file_name,
+      file_path: meta.file_path,
+      size: meta.size,
+      mime_type: meta.mime_type,
+      file_token: generateSecureId(),
+      extracted: false,
+      downloaded_at: null
+    }));
+    const { error: subfileInsertError } = await supabaseAdmin.from('zip_subfile_contents').insert(subfileRows);
+    if (subfileInsertError) {
+      logger.error('Supabase subfile insert error:', subfileInsertError);
+      return NextResponse.json(
+        { error: 'Failed to save subfile metadata in Supabase', details: subfileInsertError.message },
         { status: 500 }
       );
     }
@@ -176,14 +231,15 @@ export async function POST(request: NextRequest) {
     // Log audit event
     await supabaseAdmin.from('audit_logs').insert({
       action: 'file_upload',
-      resource_type: 'file',
-      resource_id: fileId,
+      resource_type: 'zip',
+      resource_id: zipId,
       ip_address: getClientIP(request),
       user_agent: request.headers.get('user-agent'),
       metadata: {
-        filename: file.name,
-        size: file.size,
-        mimeType: file.type
+        filename: zipName,
+        size: zipBuffer.length,
+        mimeType: 'application/zip',
+        subfiles: subfileMetadata.length
       }
     });
 
@@ -200,20 +256,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      fileId,
       downloadUrl,
       editUrl,
-      file: {
-        name: file.name,
-        size: file.size,
-        type: file.type
-      }
+      zipId,
+      subfiles: subfileMetadata.map((meta, idx) => ({ ...meta, file_token: subfileRows[idx].file_token }))
     });
-
-  } catch (error) {
-    console.error('Upload error:', error);
+  } catch (err: any) {
+    logger.error('Upload error:', err);
     return NextResponse.json(
-      { error: 'Upload failed. Please try again.' },
+      { error: 'Unexpected server error', details: err.message },
       { status: 500 }
     );
   }

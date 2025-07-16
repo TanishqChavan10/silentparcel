@@ -75,11 +75,13 @@ export function FileDropzone({ onFileSelect, multiple = false }: FileDropzonePro
         <div>
           <input
             type="file"
-            onChange={handleFileInput}
             className="hidden"
             id="file-input"
             accept="*/*"
             multiple={multiple}
+            // @ts-ignore
+            webkitdirectory={multiple ? "true" : undefined}
+            onChange={handleFileInput}
           />
           <Button asChild variant="outline" className="hover:scale-105 transition-transform">
             <label htmlFor="file-input" className="cursor-pointer">

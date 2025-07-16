@@ -2,3 +2,87 @@ api setup complete --> all done
 captcha not working  --> captcha working (kept on hold due to development)
 file not uploading --> multiple file selection, upload remaining --> upload success, fetch remaining --> fetch success, download error on device --> download success, opening error
 chat not chatting
+
+Plan of action to optimise the multiple file sharing  at once
+
+
+Full File Upload & Download Flow with Folder Structure Preservation
+📤 ⬆️ Upload Flow
+User uploads a folder, which may contain files and subfolders (including nested folders).
+
+Traverse the entire folder structure:
+
+Recursively read all files and folders
+
+Store this structure (including folder names, paths, types, and sizes) in a tree-like in-memory variable or data structure before proceeding with zip creation.
+
+Create a ZIP archive containing all the files and folders while preserving the hierarchy.
+
+Upload the ZIP file to Appwrite storage.
+
+Store ZIP metadata into a files table:
+
+Includes original zip name, upload date, metadata like file ID, tokens, user, etc.
+
+Parse the internal structure of the ZIP (without extracting):
+
+For each file/folder in the zip, insert a row into the zip_contents table (or archive_nodes):
+CREATE TABLE zip_subfile_contents (
+    id SERIAL PRIMARY KEY,
+    zip_id uuid NOT NULL REFERENCES zip_metadata(id) ON DELETE CASCADE, 
+    file_name VARCHAR(255) NOT NULL,
+    file_path TEXT NOT NULL,  -- full path inside the zip archive
+    size BIGINT NOT NULL,
+    mime_type VARCHAR(100),
+    file_token VARCHAR(64) UNIQUE,  -- optional, for downloading individual file
+    extracted BOOLEAN DEFAULT FALSE,
+    downloaded_at TIMESTAMP
+); is the table which is alreasdy craeted in the supabase
+file name
+
+full path relative to zip root (e.g., docs/notes.txt)
+
+file size
+
+mime type
+
+reference to the zip (foreign key zip_id)
+
+a file token (for secure download, optional)
+
+parent folder reference (optional if tree structure is needed)
+
+📥 ⬇️ Download Flow
+When a user wants to download a specific folder or file:
+
+Fetch the ZIP file metadata from the files table using download_token or relevant identifier.
+
+Fetch the full file/folder hierarchy of the ZIP by querying all file entries from zip_contents table where zip_id = ?.
+
+Render a file browser or tree picker UI, showing folder and file structure recovered from database paths.
+
+The user selects one or more folders/files they want to download.
+
+Or else user can download the whole zip as well
+
+On selection:
+
+From the ZIP (still stored in Appwrite), extract only selected folders and their files.
+
+Create a temporary ZIP stream on the server with only selected contents.
+
+Send that new lightweight zip file as a response for download.
+
+🎯 Objective
+Build a system that handles full-folder uploads, stores file/folder metadata in a structured way for easy querying and preview, and allows selective downloading of folders or files on demand — all with only one main ZIP file upload saved to storage.
+
+📦 Technologies
+Storage: Appwrite (single bucket for storing archived zip)
+
+Database: Supabase
+
+ZIP Handling: Node.js (adm-zip, yauzl, unzipper) 
+
+
+Note: even if the user select only one folder of the many the download count should still function and max_download should be decremented
+use /api/files/metadata to fetch all the data and then pass it on to the /api/files/download endpoint
