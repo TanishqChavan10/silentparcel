@@ -41,86 +41,69 @@ export default function FilesPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handleFileSelect = useCallback((files: File[]) => {
-    const fileDataArr = files.map(file => ({
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      file
-    }));
-    setSelectedFiles(fileDataArr);
-    setUploadProgress(new Array(fileDataArr.length).fill(0));
-    setVirusScanStatus(new Array(fileDataArr.length).fill(null));
+    setSelectedFiles(prev => {
+      // Map new files to FileData
+      const newFileDataArr = files.map(file => ({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        file
+      }));
+      // Merge, filter out duplicates (by name, size, and relative path if available)
+      const allFiles = [...prev, ...newFileDataArr];
+      const uniqueFiles = allFiles.filter(
+        (file, idx, arr) =>
+          arr.findIndex(
+            f =>
+              f.name === file.name &&
+              f.size === file.size &&
+              ((f.file as any).webkitRelativePath || f.name) === ((file.file as any).webkitRelativePath || file.name)
+          ) === idx
+      );
+      return uniqueFiles;
+    });
+    // Don't reset progress/status here; let them be managed by upload logic
   }, []);
 
   const uploadFilesToServer = async () => {
     setVirusScanStatus(selectedFiles.map(() => 'scanning'));
     setUploadProgress(selectedFiles.map(() => 0));
     setUploadError(null);
-    const linksArr: string[] = [];
-    const tokensArr: string[] = [];
-    let virusDetected = false;
 
-    for (let idx = 0; idx < selectedFiles.length; idx++) {
-      const file = selectedFiles[idx];
-      const formData = new FormData();
-      formData.append('file', file.file);
-      if (passwordProtected && password) {
-        formData.append('password', password);
-      }
-      setUploadProgress((prev) => {
-        const arr = [...prev];
-        arr[idx] = 10;
-        return arr;
-      });
-      try {
-        const res = await fetch('/api/files/upload', {
-          method: 'POST',
-          body: formData,
-        });
-        const data = await res.json();
-        if (res.ok && data.downloadUrl && data.editUrl) {
-          linksArr[idx] = data.downloadUrl;
-          tokensArr[idx] = data.editUrl.split('/').pop();
-          setVirusScanStatus((prev) => {
-            const arr = [...prev];
-            arr[idx] = 'clean';
-            return arr;
-          });
-        } else {
-          linksArr[idx] = '';
-          tokensArr[idx] = '';
-          setVirusScanStatus((prev) => {
-            const arr = [...prev];
-            arr[idx] = 'infected';
-            return arr;
-          });
-          virusDetected = true;
-          setUploadError(data.error || 'File contains a virus and cannot be shared.');
-          break;
-        }
-        setUploadProgress((prev) => {
-          const arr = [...prev];
-          arr[idx] = 100;
-          return arr;
-        });
-      } catch (err) {
-        linksArr[idx] = '';
-        tokensArr[idx] = '';
-        setVirusScanStatus((prev) => {
-          const arr = [...prev];
-          arr[idx] = 'infected';
-          return arr;
-        });
-        virusDetected = true;
-        setUploadError('File contains a virus and cannot be shared.');
-        break;
-      }
+    // Prepare FormData for all files at once
+    const formData = new FormData();
+    selectedFiles.forEach((fileData) => {
+      formData.append('files', fileData.file);
+      // Use webkitRelativePath if available, else fallback to file name
+      formData.append(
+        'relativePaths',
+        (fileData.file as any).webkitRelativePath || fileData.name
+      );
+    });
+    if (passwordProtected && password) {
+      formData.append('password', password);
     }
-    if (!virusDetected) {
-      setDownloadLinks(linksArr);
-      setEditTokens(tokensArr);
-      setTimeout(() => setStage('complete'), 500);
-    } else {
+
+    try {
+      const res = await fetch('/api/files/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.downloadUrl && data.editUrl) {
+        setVirusScanStatus(selectedFiles.map(() => 'clean'));
+        setDownloadLinks([data.downloadUrl]);
+        setEditTokens([data.editUrl.split('/').pop()]);
+        setUploadProgress(selectedFiles.map(() => 100));
+        setTimeout(() => setStage('complete'), 500);
+      } else {
+        setVirusScanStatus(selectedFiles.map(() => 'infected'));
+        setUploadError(data.error || 'File contains a virus and cannot be shared.');
+        setStage('virus-error');
+      }
+    } catch (err) {
+      setVirusScanStatus(selectedFiles.map(() => 'infected'));
+      setUploadError('File contains a virus and cannot be shared.');
       setStage('virus-error');
     }
   };
@@ -174,7 +157,7 @@ export default function FilesPage() {
               </p>
             </div>
 
-            <FileDropzone onFileSelect={handleFileSelect} multiple />
+            <FileDropzone onFileSelect={handleFileSelect}/>
 
             {selectedFiles.length > 0 && (
               <Card className="bg-card/50 border-border/50">

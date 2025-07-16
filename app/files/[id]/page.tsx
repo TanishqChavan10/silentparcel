@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { redirect, useParams } from 'next/navigation';
-import { ArrowLeft, Download, Lock, Shield, Clock, AlertTriangle, FileText, Archive, Edit } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { ArrowLeft, Download, Lock, Shield, AlertTriangle, FileText, Archive, Edit, Folder } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,139 +10,148 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/theme-toggle';
 import Link from 'next/link';
-import { storage, BUCKETS } from '@/lib/appwrite';
-import { ID } from 'appwrite';
 
-interface FileInfo {
-  name: string;
+type Subfile = {
+  file_name: string;
+  file_path: string;
   size: number;
-  type: string;
-  uploadDate: Date;
-  downloadCount: number;
-  maxDownloads: number;
-  expiryDate: Date;
-  isPasswordProtected: boolean;
-  virusScanStatus: 'clean' | 'infected' | 'scanning';
-  files?: { name: string; size: number }[]; // For archives
-  appwrite_id: string; // Appwrite file ID
+  mime_type: string;
+  file_token: string;
+  extracted: boolean;
+  downloaded_at: string | null;
+};
+
+type TreeNode = {
+  [key: string]: TreeNode | (Subfile & { __isLeaf: true });
+};
+
+type FlatTreeItem = {
+  path: string;
+  name: string;
+  isLeaf: boolean;
+};
+
+function buildTree(files: Subfile[]): TreeNode {
+  const root: TreeNode = {};
+  for (const file of files) {
+    const parts = file.file_path.split('/');
+    let node: TreeNode = root;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (!node[part]) {
+        node[part] = i === parts.length - 1 ? { ...file, __isLeaf: true } : {};
+      }
+      node = node[part] as TreeNode;
+    }
+  }
+  return root;
+}
+
+function flattenTree(tree: TreeNode, prefix = ''): FlatTreeItem[] {
+  let result: FlatTreeItem[] = [];
+  for (const key in tree) {
+    const node = tree[key];
+    const path = prefix ? `${prefix}/${key}` : key;
+    if ((node as any).__isLeaf) {
+      result.push({ path, name: key, isLeaf: true });
+    } else {
+      result.push({ path, name: key, isLeaf: false });
+      result = result.concat(flattenTree(node as TreeNode, path));
+    }
+  }
+  return result;
 }
 
 export default function FileDownloadPage() {
   const params = useParams();
   const [password, setPassword] = useState('');
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const [downloadStarted, setDownloadStarted] = useState(false);
   const [fileExists, setFileExists] = useState(true);
-  const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
-  const [editToken, setEditToken] = useState('');
+  const [fileInfo, setFileInfo] = useState<any>(null);
+  const [fileTree, setFileTree] = useState<TreeNode>({});
+  const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
+  const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState('');
   const [showEditToken, setShowEditToken] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [uploadProgress, setUploadProgress] = useState<number[]>([]);
-  const [virusScanStatus, setVirusScanStatus] = useState<string[]>([]);
-  const [downloadLinks, setDownloadLinks] = useState<string[]>([]);
-  const [editTokens, setEditTokens] = useState<string[]>([]);
-  const [stage, setStage] = useState<'captcha' | 'uploading' | 'complete'>('captcha');
+  const [editToken, setEditToken] = useState('');
 
-  const fileId = params.id as string;
+  const fileId = params.id;
 
   useEffect(() => {
-    const fetchFileInfo = async () => {
-      const res = await fetch(`/api/files/download/${fileId}?meta=1`);
+    const fetchMeta = async () => {
+      setError('');
+      const res = await fetch(`/api/files/metadata/${fileId}`);
       if (res.ok) {
         const data = await res.json();
-        setFileInfo({
-          name: data.name,
-          size: data.size,
-          type: data.type,
-          uploadDate: new Date(data.uploadDate),
-          downloadCount: data.downloadCount,
-          maxDownloads: data.maxDownloads,
-          expiryDate: data.expiryDate ? new Date(data.expiryDate) : new Date(0),
-          isPasswordProtected: data.isPasswordProtected,
-          virusScanStatus: data.virusScanStatus,
-          appwrite_id: data.appwrite_id,
-        });
+        setFileInfo(data);
+        if (data.files && data.files.length > 0) {
+          setFileTree(buildTree(data.files));
+        }
         setFileExists(true);
+      } else {
+        setFileExists(false);
       }
     };
-    fetchFileInfo();
+    fetchMeta();
   }, [fileId]);
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+    if (!bytes) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString();
+  const formatDate = (date: string | Date | undefined) => {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toLocaleDateString() + ' at ' + d.toLocaleTimeString();
   };
 
-  const handleUnlock = () => {
-    // Simulate password check
-    if (password === 'demo123') {
-      setIsUnlocked(true);
-    }
+  const handleUnlock = async () => {
+    setError('');
+    // Try to fetch metadata with password (simulate check)
+    setIsUnlocked(true); // In production, validate password server-side
   };
 
-  const handleDownload = (type: 'single' | 'zip') => {
-    setDownloadStarted(true);
-    // Simulate download
-    setTimeout(() => {
-      setDownloadStarted(false);
-    }, 2000);
+  const handleSelect = (path: string) => {
+    setSelectedPaths((prev) =>
+      prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path]
+    );
   };
 
-  const handleEditTokenSubmit = () => {
-    if (editToken === 'edit_token_abc123' || editToken.length >= 10) {
-      window.location.href = `/files/manage/${fileId}`;
-    }
+  const handleSelectAll = () => {
+    setSelectedPaths(flattenTree(fileTree).map((f) => f.path));
   };
 
-  const getFileIcon = (type: string) => {
-    if (type.includes('zip') || type.includes('archive')) return Archive;
-    return FileText;
-  };
-
-  const uploadFilesToAppwrite = async () => {
-    setVirusScanStatus(selectedFiles.map(() => 'scanning'));
-    const progressArr = [...uploadProgress];
-    const statusArr = [...virusScanStatus];
-    const linksArr: string[] = [];
-    const tokensArr: string[] = [];
-
-    for (let idx = 0; idx < selectedFiles.length; idx++) {
-      const file = selectedFiles[idx];
-      try {
-        // Upload to Appwrite Storage
-        const response = await storage.createFile(
-          BUCKETS.FILES,
-          ID.unique(),
-          file // Use the File object directly, not file.file
-        );
-        // Instead of using response.$id, use the appwrite_id from Supabase metadata
-        linksArr[idx] = `https://syd.cloud.appwrite.io/v1/storage/buckets/${BUCKETS.FILES}/files/${fileInfo?.appwrite_id}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
-        tokensArr[idx] = `edit_token_${Math.random().toString(36).substring(2, 8)}`;
-        statusArr[idx] = 'clean';
-        progressArr[idx] = 100;
-      } catch (err) {
-        statusArr[idx] = 'infected'; // Or handle error differently
-        progressArr[idx] = 100;
+  const handleDownloadSelected = async () => {
+    setDownloading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/files/download/${fileId}${fileInfo?.isPasswordProtected ? `?password=${encodeURIComponent(password)}` : ''}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paths: selectedPaths })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || 'Download failed');
+        setDownloading(false);
+        return;
       }
-      setUploadProgress([...progressArr]);
-      setVirusScanStatus([...statusArr]);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileInfo?.name.replace(/\.zip$/, '')}_partial.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setDownloading(false);
+    } catch (e) {
+      setError('Download failed');
+      setDownloading(false);
     }
-
-    setDownloadLinks(linksArr);
-    setEditTokens(tokensArr);
-    setTimeout(() => setStage('complete'), 500);
-  };
-
-  const handleCaptchaComplete = () => {
-    setStage('uploading');
-    uploadFilesToAppwrite();
   };
 
   if (!fileExists || !fileInfo) {
@@ -159,7 +168,6 @@ export default function FileDownloadPage() {
             <ThemeToggle />
           </div>
         </header>
-
         <div className="container mx-auto px-4 py-8 max-w-md">
           <Card className="bg-card/50 border-border/50">
             <CardHeader>
@@ -184,7 +192,7 @@ export default function FileDownloadPage() {
     );
   }
 
-  const FileIcon = getFileIcon(fileInfo.type);
+  const FileIcon = fileInfo && fileInfo.type && (fileInfo.type.includes('zip') || fileInfo.type.includes('archive')) ? Archive : FileText;
 
   return (
     <div className="min-h-screen bg-background">
@@ -200,7 +208,6 @@ export default function FileDownloadPage() {
           <ThemeToggle />
         </div>
       </header>
-
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="space-y-6">
           {/* File Header */}
@@ -212,19 +219,18 @@ export default function FileDownloadPage() {
                     <FileIcon className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl">{fileInfo.name}</CardTitle>
+                    <CardTitle className="text-xl">{fileInfo?.name}</CardTitle>
                     <p className="text-muted-foreground">
-                      {formatFileSize(fileInfo.size)} • Uploaded {formatDate(fileInfo.uploadDate)}
+                      {formatFileSize(fileInfo?.size ?? 0)} • Uploaded {formatDate(fileInfo?.uploadDate)}
                     </p>
                   </div>
                 </div>
-                
                 <div className="flex flex-col items-end space-y-2">
                   <Badge variant="default" className="bg-green-100 text-green-800 border border-green-300">
                     <Shield className="h-3 w-3 mr-1 text-green-600 bg-transparent" />
                     Virus Free
                   </Badge>
-                  {fileInfo.isPasswordProtected && (
+                  {fileInfo?.isPasswordProtected && (
                     <Badge variant="secondary">
                       <Lock className="h-3 w-3 mr-1" />
                       Protected
@@ -234,27 +240,25 @@ export default function FileDownloadPage() {
               </div>
             </CardHeader>
           </Card>
-
           {/* Download Limits */}
           <Card className="bg-card/50 border-border/50">
             <CardContent className="pt-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">
-                    {fileInfo.maxDownloads - fileInfo.downloadCount}
+                    {fileInfo ? fileInfo.maxDownloads - fileInfo.downloadCount : 0}
                   </div>
                   <p className="text-sm text-muted-foreground">Downloads Remaining</p>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-chart-1">
-                    {Math.ceil((fileInfo.expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))}
+                    {fileInfo ? Math.ceil((new Date(fileInfo.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0}
                   </div>
                   <p className="text-sm text-muted-foreground">Days Until Expiry</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-
           {/* Edit Token Section */}
           <Card className="bg-card/50 border-border/50">
             <CardHeader>
@@ -266,7 +270,6 @@ export default function FileDownloadPage() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  // onClick={() => setShowEditToken(!showEditToken)}
                   onClick={() => window.location.href = `/files/manage/${fileId}`}
                   className="hover:scale-105 transition-transform"
                 >
@@ -274,36 +277,9 @@ export default function FileDownloadPage() {
                 </Button>
               </CardTitle>
             </CardHeader>
-            {showEditToken && (
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-token">Enter Edit Token</Label>
-                  <Input
-                    id="edit-token"
-                    type="password"
-                    placeholder="Your management token"
-                    value={editToken}
-                    onChange={(e) => setEditToken(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleEditTokenSubmit()}
-                    className="bg-background/50"
-                  />
-                </div>
-                <Button 
-                  onClick={handleEditTokenSubmit} 
-                  disabled={!editToken} 
-                  className="w-full hover:scale-105 transition-transform"
-                >
-                  Access File Management
-                </Button>
-                <p className="text-xs text-muted-foreground text-center">
-                  Demo token: edit_token_abc123
-                </p>
-              </CardContent>
-            )}
           </Card>
-
           {/* Password Protection */}
-          {fileInfo.isPasswordProtected && !isUnlocked && (
+          {fileInfo?.isPasswordProtected && !isUnlocked && (
             <Card className="bg-card/50 border-border/50">
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -331,47 +307,50 @@ export default function FileDownloadPage() {
                 >
                   Unlock File
                 </Button>
-                <p className="text-xs text-muted-foreground text-center">
-                  Demo password: demo123
-                </p>
               </CardContent>
             </Card>
           )}
-
-          {/* File Contents (for archives) */}
-          {(!fileInfo.isPasswordProtected || isUnlocked) && fileInfo.files && (
+          {/* File/Folder Tree Picker */}
+          {(!fileInfo?.isPasswordProtected || isUnlocked) && fileInfo?.files && fileInfo.files.length > 0 && (
             <Card className="bg-card/50 border-border/50">
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Archive className="h-5 w-5 mr-2" />
-                  Archive Contents ({fileInfo.files.length} files)
+                  Select Files or Folders to Download
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {fileInfo.files.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between py-2 px-3 bg-muted/30 rounded-lg">
-                      <div className="flex items-center space-x-2">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">{file.name}</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {formatFileSize(file.size)}
-                      </span>
+                <div className="mb-2">
+                  <Button size="sm" variant="outline" onClick={handleSelectAll} className="mr-2">Select All</Button>
+                  <Button size="sm" variant="outline" onClick={() => setSelectedPaths([])}>Clear</Button>
+                </div>
+                <div className="space-y-1 max-h-60 overflow-y-auto border rounded p-2 bg-muted/20">
+                  {flattenTree(fileTree).map((item) => (
+                    <div key={item.path} className="flex items-center gap-2 pl-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedPaths.includes(item.path)}
+                        onChange={() => handleSelect(item.path)}
+                        id={item.path}
+                      />
+                      {item.isLeaf ? <FileText className="h-4 w-4 text-muted-foreground" /> : <Folder className="h-4 w-4 text-muted-foreground" />}
+                      <label htmlFor={item.path} className="text-sm cursor-pointer select-none">
+                        {item.name}
+                      </label>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Download Buttons */}
-          {(!fileInfo.isPasswordProtected || isUnlocked) && (
-            <Card className="bg-card/50 border-border/50">
-              <CardContent className="pt-6">
-                <div className="space-y-3">
+                <div className="flex gap-2 mt-4">
+                  <Button
+                    onClick={handleDownloadSelected}
+                    disabled={downloading || selectedPaths.length === 0}
+                    className="w-full"
+                  >
+                    {downloading ? <span>Preparing...</span> : <><Download className="mr-2 h-4 w-4" />Download Selected</>}
+                  </Button>
                   <Button
                     asChild
+                    variant="outline"
                     className="w-full"
                   >
                     <a
@@ -381,29 +360,18 @@ export default function FileDownloadPage() {
                       rel="noopener noreferrer"
                     >
                       <Download className="mr-2 h-4 w-4" />
-                      Download
+                      Download All
                     </a>
                   </Button>
-                  
-                  {fileInfo.files && fileInfo.files.length > 1 && (
-                    <Button 
-                      onClick={() => handleDownload('single')}
-                      variant="outline"
-                      className="w-full hover:scale-105 transition-transform"
-                    >
-                      <Archive className="h-4 w-4 mr-2" />
-                      Download Individual Files
-                    </Button>
-                  )}
                 </div>
+                {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
               </CardContent>
             </Card>
           )}
-
           {/* Footer Info */}
           <div className="text-center space-y-2">
             <p className="text-xs text-muted-foreground">
-              Downloaded {fileInfo.downloadCount} times • Expires {formatDate(fileInfo.expiryDate)}
+              Downloaded {fileInfo?.downloadCount} times • Expires {formatDate(fileInfo?.expiryDate)}
             </p>
             <Button variant="link" size="sm" className="text-xs">
               <AlertTriangle className="h-3 w-3 mr-1" />
