@@ -41,15 +41,28 @@ export default function FilesPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handleFileSelect = useCallback((files: File[]) => {
-    const fileDataArr = files.map(file => ({
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      file
-    }));
-    setSelectedFiles(fileDataArr);
-    setUploadProgress(new Array(fileDataArr.length).fill(0));
-    setVirusScanStatus(new Array(fileDataArr.length).fill(null));
+    setSelectedFiles(prev => {
+      // Map new files to FileData
+      const newFileDataArr = files.map(file => ({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        file
+      }));
+      // Merge, filter out duplicates (by name, size, and relative path if available)
+      const allFiles = [...prev, ...newFileDataArr];
+      const uniqueFiles = allFiles.filter(
+        (file, idx, arr) =>
+          arr.findIndex(
+            f =>
+              f.name === file.name &&
+              f.size === file.size &&
+              ((f.file as any).webkitRelativePath || f.name) === ((file.file as any).webkitRelativePath || file.name)
+          ) === idx
+      );
+      return uniqueFiles;
+    });
+    // Don't reset progress/status here; let them be managed by upload logic
   }, []);
 
   const uploadFilesToServer = async () => {
