@@ -1,17 +1,18 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import { Upload, FileText } from 'lucide-react';
+import { useCallback, useRef, useState } from 'react';
+import { Upload, FileText, FolderOpen } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 interface FileDropzoneProps {
   onFileSelect: (files: File[]) => void;
-  multiple?: boolean;
 }
 
-export function FileDropzone({ onFileSelect, multiple = false }: FileDropzoneProps) {
+export function FileDropzone({ onFileSelect }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -28,17 +29,16 @@ export function FileDropzone({ onFileSelect, multiple = false }: FileDropzonePro
     setIsDragging(false);
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
-      onFileSelect(multiple ? files : [files[0]]);
+      onFileSelect(files);
     }
-  }, [onFileSelect, multiple]);
+  }, [onFileSelect]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const fileArr = Array.from(files);
-      onFileSelect(multiple ? fileArr : [fileArr[0]]);
+      onFileSelect(Array.from(files));
     }
-  }, [onFileSelect, multiple]);
+  }, [onFileSelect]);
 
   return (
     <Card className={`
@@ -64,29 +64,46 @@ export function FileDropzone({ onFileSelect, multiple = false }: FileDropzonePro
         <div>
           <h3 className="text-lg font-semibold mb-2">
             {isDragging 
-              ? multiple ? 'Drop your files here' : 'Drop your file here'
-              : multiple ? 'Drag & drop your files' : 'Drag & drop your file'}
+              ? 'Drop your files or folder here'
+              : 'Drag & drop your files or folder'}
           </h3>
           <p className="text-muted-foreground mb-4">
-            or click to browse (max 50000KB{multiple ? ' per file' : ''})
+            or choose a file or folder (max 50000KB per file)
           </p>
         </div>
         
-        <div>
+        <div className="flex gap-2 justify-center">
+          {/* Single file input */}
           <input
             type="file"
             className="hidden"
             id="file-input"
             accept="*/*"
-            multiple={multiple}
-            // @ts-ignore
-            webkitdirectory={multiple ? "true" : undefined}
+            ref={fileInputRef}
             onChange={handleFileInput}
           />
           <Button asChild variant="outline" className="hover:scale-105 transition-transform">
-            <label htmlFor="file-input" className="cursor-pointer">
+            <label htmlFor="file-input" className="cursor-pointer flex items-center">
               <FileText className="h-4 w-4 mr-2" />
-              {multiple ? 'Choose Files' : 'Choose File'}
+              Choose File
+            </label>
+          </Button>
+
+          {/* Folder input */}
+          <input
+            type="file"
+            className="hidden"
+            id="folder-input"
+            // @ts-ignore
+            webkitdirectory="true"
+            multiple
+            ref={folderInputRef}
+            onChange={handleFileInput}
+          />
+          <Button asChild variant="outline" className="hover:scale-105 transition-transform">
+            <label htmlFor="folder-input" className="cursor-pointer flex items-center">
+              <FolderOpen className="h-4 w-4 mr-2" />
+              Choose Folder
             </label>
           </Button>
         </div>

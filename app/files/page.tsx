@@ -144,7 +144,7 @@ export default function FilesPage() {
               </p>
             </div>
 
-            <FileDropzone onFileSelect={handleFileSelect} multiple/>
+            <FileDropzone onFileSelect={handleFileSelect}/>
 
             {selectedFiles.length > 0 && (
               <Card className="bg-card/50 border-border/50">
