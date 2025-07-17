@@ -182,18 +182,66 @@ export async function GET(
       return NextResponse.json({ error: "Failed to fetch file from storage. Please try again later or contact support." }, { status: 500 });
     }
     // Update download count (awaited)
+    let shouldDeactivate = false;
     try {
+      const newDownloadCount = (fileRecord.download_count || 0) + 1;
+      const now = new Date();
+      const expiryDate = new Date(fileRecord.expiry_date);
+      if (newDownloadCount >= fileRecord.max_downloads || now > expiryDate) {
+        shouldDeactivate = true;
+      }
       const { error: updateError } = await supabaseAdmin
         .from("zip_metadata")
         .update({
-          download_count: (fileRecord.download_count || 0) + 1,
-          last_downloaded_at: new Date().toISOString(),
+          download_count: newDownloadCount,
+          last_downloaded_at: now.toISOString(),
+          is_active: !shouldDeactivate
         })
         .eq("id", fileRecord.id);
       if (updateError) {
         console.error('Failed to update download count:', updateError);
       } else {
         console.log('Checkpoint: Download count incremented');
+      }
+      // If should deactivate, delete from Appwrite and Supabase
+      if (shouldDeactivate) {
+        try {
+          // Delete from Appwrite storage
+          await storage.deleteFile(BUCKETS.FILES, fileRecord.appwrite_id);
+          // Delete from Supabase
+          const { error: deleteError } = await supabaseAdmin
+            .from("zip_metadata")
+            .delete()
+            .eq("id", fileRecord.id);
+          if (deleteError) {
+            console.error('Failed to delete zip_metadata row:', deleteError);
+          } else {
+            console.log('Checkpoint: File and metadata deleted after expiry or max downloads');
+            // Audit log for deletion
+            let userId = 'human';
+            if (newDownloadCount >= fileRecord.max_downloads) {
+              userId = 'download_limit';
+            } else if (now > expiryDate) {
+              userId = 'time_limit';
+            }
+            await supabaseAdmin.from("audit_logs").insert({
+              action: "file_deleted",
+              resource_type: "file",
+              resource_id: fileRecord.id,
+              user_id: userId,
+              ip_address: getClientIP(request),
+              user_agent: request.headers.get("user-agent"),
+              metadata: {
+                filename: fileRecord.original_name,
+                reason: (newDownloadCount >= fileRecord.max_downloads) ? 'max_downloads_reached' : 'expired',
+                downloadCount: newDownloadCount,
+                expiryDate: fileRecord.expiry_date
+              },
+            });
+          }
+        } catch (err) {
+          console.error('Error deleting file from Appwrite or Supabase:', err);
+        }
       }
     } catch (err) {
       console.error('Exception while updating download count:', err);
@@ -360,18 +408,66 @@ export async function POST(
       return NextResponse.json({ error: "Failed to extract selected files. Please try again later or contact support." }, { status: 500 });
     }
     // Update download count (awaited)
+    let shouldDeactivate = false;
     try {
+      const newDownloadCount = (fileRecord.download_count || 0) + 1;
+      const now = new Date();
+      const expiryDate = new Date(fileRecord.expiry_date);
+      if (newDownloadCount >= fileRecord.max_downloads || now > expiryDate) {
+        shouldDeactivate = true;
+      }
       const { error: updateError } = await supabaseAdmin
         .from("zip_metadata")
         .update({
-          download_count: (fileRecord.download_count || 0) + 1,
-          last_downloaded_at: new Date().toISOString(),
+          download_count: newDownloadCount,
+          last_downloaded_at: now.toISOString(),
+          is_active: !shouldDeactivate
         })
         .eq("id", fileRecord.id);
       if (updateError) {
         console.error('Failed to update download count:', updateError);
       } else {
         console.log('Checkpoint: Download count incremented');
+      }
+      // If should deactivate, delete from Appwrite and Supabase
+      if (shouldDeactivate) {
+        try {
+          // Delete from Appwrite storage
+          await storage.deleteFile(BUCKETS.FILES, fileRecord.appwrite_id);
+          // Delete from Supabase
+          const { error: deleteError } = await supabaseAdmin
+            .from("zip_metadata")
+            .delete()
+            .eq("id", fileRecord.id);
+          if (deleteError) {
+            console.error('Failed to delete zip_metadata row:', deleteError);
+          } else {
+            console.log('Checkpoint: File and metadata deleted after expiry or max downloads');
+            // Audit log for deletion
+            let userId = 'human';
+            if (newDownloadCount >= fileRecord.max_downloads) {
+              userId = 'download_limit';
+            } else if (now > expiryDate) {
+              userId = 'time_limit';
+            }
+            await supabaseAdmin.from("audit_logs").insert({
+              action: "file_deleted",
+              resource_type: "file",
+              resource_id: fileRecord.id,
+              user_id: userId,
+              ip_address: getClientIP(request),
+              user_agent: request.headers.get("user-agent"),
+              metadata: {
+                filename: fileRecord.original_name,
+                reason: (newDownloadCount >= fileRecord.max_downloads) ? 'max_downloads_reached' : 'expired',
+                downloadCount: newDownloadCount,
+                expiryDate: fileRecord.expiry_date
+              },
+            });
+          }
+        } catch (err) {
+          console.error('Error deleting file from Appwrite or Supabase:', err);
+        }
       }
     } catch (err) {
       console.error('Exception while updating download count:', err);
