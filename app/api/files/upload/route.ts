@@ -45,7 +45,14 @@ export async function POST(request: NextRequest) {
     }
     const password = formData.get('password') as string;
     const expiresIn = formData.get('expiresIn') as string;
-    const maxDownloads = formData.get('maxDownloads') as string;
+    const maxDownloadsRaw = formData.get('maxDownloads');
+    let maxDownloads = 20;
+    if (maxDownloadsRaw !== null && maxDownloadsRaw !== undefined) {
+      const parsed = parseInt(String(maxDownloadsRaw), 10);
+      if (!isNaN(parsed) && parsed >= 1 && parsed <= 20) {
+        maxDownloads = parsed;
+      }
+    }
     const captchaToken = formData.get('captchaToken') as string;
 
     if (!files || files.length === 0) {
@@ -190,7 +197,7 @@ export async function POST(request: NextRequest) {
         edit_token: editToken,
         password: password || null,
         expiry_date: expiryDate,
-        max_downloads: maxDownloads ? parseInt(maxDownloads) : 10,
+        max_downloads: maxDownloads,
         download_count: 0,
         is_active: true,
         uploaded_at: new Date().toISOString(),

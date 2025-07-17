@@ -39,6 +39,8 @@ export default function FilesPage() {
   const [downloadLinks, setDownloadLinks] = useState<string[]>([]);
   const [editTokens, setEditTokens] = useState<string[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [maxDownloadsEnabled, setMaxDownloadsEnabled] = useState(false);
+  const [maxDownloads, setMaxDownloads] = useState(20);
 
   const handleFileSelect = useCallback((files: File[]) => {
     setSelectedFiles(prev => {
@@ -83,6 +85,8 @@ export default function FilesPage() {
     if (passwordProtected && password) {
       formData.append('password', password);
     }
+    // Add maxDownloads to formData
+    formData.append('maxDownloads', String(maxDownloadsEnabled ? maxDownloads : 20));
 
     try {
       const res = await fetch('/api/files/upload', {
@@ -226,6 +230,42 @@ export default function FilesPage() {
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           className="bg-background/50"
+                        />
+                      </div>
+                    )}
+                    {/* Max Downloads Setting */}
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="space-y-0.5">
+                        <Label className="flex items-center">
+                          <Shield className="h-4 w-4 mr-2" />
+                          Max Downloads
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          Limit the number of times this file can be downloaded
+                        </p>
+                      </div>
+                      <Switch
+                        checked={maxDownloadsEnabled}
+                        onCheckedChange={setMaxDownloadsEnabled}
+                      />
+                    </div>
+                    {maxDownloadsEnabled && (
+                      <div className="space-y-2 mt-2">
+                        <Label htmlFor="max-downloads">Max Downloads (1-20)</Label>
+                        <Input
+                          id="max-downloads"
+                          type="number"
+                          min={1}
+                          max={20}
+                          value={maxDownloads}
+                          onChange={e => {
+                            let val = parseInt(e.target.value, 10);
+                            if (isNaN(val)) val = 1;
+                            if (val < 1) val = 1;
+                            if (val > 20) val = 20;
+                            setMaxDownloads(val);
+                          }}
+                          className="bg-background/50 w-24"
                         />
                       </div>
                     )}
