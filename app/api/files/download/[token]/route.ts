@@ -181,21 +181,23 @@ export async function GET(
       console.error("Appwrite file fetch error:", err);
       return NextResponse.json({ error: "Failed to fetch file from storage. Please try again later or contact support." }, { status: 500 });
     }
-    // Return the original ZIP file as a download
-    const response = new NextResponse(fileBuffer);
-    response.headers.set("Content-Type", fileRecord.mime_type || "application/zip");
-    response.headers.set(
-      "Content-Disposition",
-      `attachment; filename="${fileRecord.original_name}"`
-    );
-    // Update download count (fire and forget)
-    supabaseAdmin
-      .from("zip_metadata")
-      .update({
-        download_count: (fileRecord.download_count || 0) + 1,
-        last_downloaded_at: new Date().toISOString(),
-      })
-      .eq("id", fileRecord.id);
+    // Update download count (awaited)
+    try {
+      const { error: updateError } = await supabaseAdmin
+        .from("zip_metadata")
+        .update({
+          download_count: (fileRecord.download_count || 0) + 1,
+          last_downloaded_at: new Date().toISOString(),
+        })
+        .eq("id", fileRecord.id);
+      if (updateError) {
+        console.error('Failed to update download count:', updateError);
+      } else {
+        console.log('Checkpoint: Download count incremented');
+      }
+    } catch (err) {
+      console.error('Exception while updating download count:', err);
+    }
     // Log audit event (fire and forget)
     supabaseAdmin.from("audit_logs").insert({
       action: "file_download",
@@ -209,7 +211,7 @@ export async function GET(
       },
     });
     console.log('Checkpoint: Returning file as download');
-    return response;
+    return NextResponse.json(fileBuffer);
   } catch (error) {
     console.error("Download error:", error);
     return NextResponse.json(
@@ -357,14 +359,23 @@ export async function POST(
       console.error("ZIP extraction error:", err);
       return NextResponse.json({ error: "Failed to extract selected files. Please try again later or contact support." }, { status: 500 });
     }
-    // Update download count (fire and forget)
-    supabaseAdmin
-      .from("zip_metadata")
-      .update({
-        download_count: (fileRecord.download_count || 0) + 1,
-        last_downloaded_at: new Date().toISOString(),
-      })
-      .eq("id", fileRecord.id);
+    // Update download count (awaited)
+    try {
+      const { error: updateError } = await supabaseAdmin
+        .from("zip_metadata")
+        .update({
+          download_count: (fileRecord.download_count || 0) + 1,
+          last_downloaded_at: new Date().toISOString(),
+        })
+        .eq("id", fileRecord.id);
+      if (updateError) {
+        console.error('Failed to update download count:', updateError);
+      } else {
+        console.log('Checkpoint: Download count incremented');
+      }
+    } catch (err) {
+      console.error('Exception while updating download count:', err);
+    }
     // Log audit event (fire and forget)
     supabaseAdmin.from("audit_logs").insert({
       action: "file_download_partial",
