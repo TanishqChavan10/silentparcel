@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Shield, AlertTriangle, Edit, Eye, Trash2, Download, Plus, FileText, Archive, Users, Calendar } from 'lucide-react';
+import { ArrowLeft, Shield, AlertTriangle, Edit, Eye, Trash2, Download, Plus, FileText, Archive, Users, Calendar, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,18 +13,30 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
 
+interface Subfile {
+  file_name: string;
+  file_path: string;
+  size: number;
+  mime_type: string;
+  file_token: string;
+  extracted: boolean;
+  downloaded_at: string | null;
+}
+
 interface FileInfo {
   id: string;
   name: string;
   size: number;
   type: string;
-  uploadDate: Date;
+  uploadDate: string;
   downloadCount: number;
   maxDownloads: number;
-  expiryDate: Date;
+  expiryDate: string;
   isPasswordProtected: boolean;
-  virusScanStatus: 'clean' | 'infected' | 'scanning';
-  files?: { name: string; size: number; id: string }[];
+  virusScanStatus: string;
+  files: Subfile[];
+  appwrite_id: string;
+  isActive: boolean;
 }
 
 interface AccessLog {
@@ -44,67 +56,51 @@ export default function ManageFilePage() {
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
   const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
   const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [filesToDelete, setFilesToDelete] = useState<string[]>([]); // file_token of files to delete
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fileId = params.id as string;
 
-  const handleAuthenticate = () => {
-    // Simulate token verification
-    if (editToken === 'edit_token_abc123' || editToken.length >= 10) {
-      setIsAuthenticated(true);
-      setError('');
-      loadFileData();
-    } else {
-      setError('Invalid edit token. Try "edit_token_abc123" for demo.');
+  // Fetch metadata from API
+  const loadFileData = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/files/metadata/${fileId}`);
+      if (!res.ok) {
+        setError('File not found or has been deleted.');
+        setFileInfo(null);
+      } else {
+        const data = await res.json();
+        setFileInfo(data);
+      }
+    } catch (e) {
+      setError('Failed to fetch file metadata.');
+      setFileInfo(null);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadFileData = () => {
-    // Mock file data
-    const mockFile: FileInfo = {
-      id: fileId,
-      name: 'project-files.zip',
-      size: 2.5 * 1024 * 1024,
-      type: 'application/zip',
-      uploadDate: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      downloadCount: 3,
-      maxDownloads: 10,
-      expiryDate: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000),
-      isPasswordProtected: true,
-      virusScanStatus: 'clean',
-      files: [
-        { id: '1', name: 'README.md', size: 1024 },
-        { id: '2', name: 'src/main.js', size: 5120 },
-        { id: '3', name: 'package.json', size: 512 },
-        { id: '4', name: 'assets/logo.png', size: 2048000 }
-      ]
-    };
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadFileData();
+    }
+    // eslint-disable-next-line
+  }, [isAuthenticated, fileId]);
 
-    const mockLogs: AccessLog[] = [
-      {
-        id: '1',
-        ip: '192.168.1.100',
-        timestamp: new Date(Date.now() - 30 * 60 * 1000),
-        action: 'download',
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
-      {
-        id: '2',
-        ip: '10.0.0.50',
-        timestamp: new Date(Date.now() - 60 * 60 * 1000),
-        action: 'view',
-        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-      },
-      {
-        id: '3',
-        ip: '172.16.0.25',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        action: 'download',
-        userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'
-      }
-    ];
-
-    setFileInfo(mockFile);
-    setAccessLogs(mockLogs);
+  const handleAuthenticate = () => {
+    // Simulate token verification (replace with real check if needed)
+    if (editToken && editToken.length >= 10) {
+      setIsAuthenticated(true);
+      setError('');
+    } else {
+      setError('Invalid edit token.');
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -123,30 +119,97 @@ export default function ManageFilePage() {
     if (fileInfo?.files) {
       setFileInfo({
         ...fileInfo,
-        files: fileInfo.files.filter(f => f.id !== fileId)
+        files: fileInfo.files.filter(f => f.file_token !== fileId)
       });
     }
   };
 
-  const handleAddFiles = () => {
-    // Simulate adding files
-    if (newFiles.length > 0 && fileInfo) {
-      const newFileEntries = newFiles.map((file, index) => ({
-        id: `new_${Date.now()}_${index}`,
-        name: file.name,
-        size: file.size
-      }));
+  // Handler for adding files to pendingFiles
+  const handleAddFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const filesArray = Array.from(e.target.files ?? []); // Fix linter error
+    setPendingFiles(prev => [...prev, ...filesArray]);
+    e.target.value = '';
+  };
 
-      setFileInfo({
-        ...fileInfo,
-        files: [...(fileInfo.files || []), ...newFileEntries]
+  // Handler for removing a pending file
+  const handleRemovePendingFile = (idx: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // Handler for marking an existing file for deletion
+  const handleDeleteExistingFile = (fileToken: string) => {
+    setFilesToDelete(prev => [...prev, fileToken]);
+  };
+
+  // Handler for undoing delete on an existing file
+  const handleUndoDeleteExistingFile = (fileToken: string) => {
+    setFilesToDelete(prev => prev.filter(token => token !== fileToken));
+  };
+
+  // Handler for updating files (send to backend)
+  const handleUpdateFiles = async () => {
+    if (pendingFiles.length === 0 && filesToDelete.length === 0) return;
+    setUpdateLoading(true);
+    setError('');
+    try {
+      const formData = new FormData();
+      pendingFiles.forEach(file => {
+        formData.append('files', file);
+        formData.append('relativePaths', (file as any).webkitRelativePath || file.name);
       });
-      setNewFiles([]);
+      formData.append('editToken', editToken);
+      // Send files to delete as a JSON string
+      formData.append('filesToDelete', JSON.stringify(filesToDelete));
+      const res = await fetch(`/api/files/manage/${fileId}`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Failed to update file');
+      } else {
+        await loadFileData();
+        setPendingFiles([]);
+        setFilesToDelete([]);
+      }
+    } catch (err) {
+      setError('Failed to update file');
+    } finally {
+      setUpdateLoading(false);
     }
   };
 
   const viewAsReceiver = () => {
     router.push(`/files/${fileId}`);
+  };
+
+  // Handler for uploading a new ZIP file
+  const handleZipUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const zipFile = e.target.files[0];
+    setUploading(true);
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', zipFile);
+      formData.append('editToken', editToken);
+      const res = await fetch(`/api/files/manage/${fileId}`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || 'Failed to update file');
+      } else {
+        await loadFileData();
+      }
+    } catch (err) {
+      setError('Failed to update file');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
   };
 
   if (!isAuthenticated) {
@@ -195,12 +258,17 @@ export default function ManageFilePage() {
               >
                 Access File Management
               </Button>
-              <p className="text-xs text-muted-foreground text-center">
-                Demo token: edit_token_abc123
-              </p>
             </CardContent>
           </Card>
         </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-lg text-muted-foreground">Loading file info...</div>
       </div>
     );
   }
@@ -282,7 +350,7 @@ export default function ManageFilePage() {
                   <div>
                     <CardTitle className="text-xl">{fileInfo.name}</CardTitle>
                     <p className="text-muted-foreground">
-                      {formatFileSize(fileInfo.size)} • Uploaded {formatDate(fileInfo.uploadDate)}
+                      {formatFileSize(fileInfo.size)} • Uploaded {new Date(fileInfo.uploadDate).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -330,7 +398,7 @@ export default function ManageFilePage() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-chart-2">
-                    {Math.ceil((fileInfo.expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))}
+                    {Math.ceil((new Date(fileInfo.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))}
                   </div>
                   <p className="text-sm text-muted-foreground">Days Until Expiry</p>
                 </div>
@@ -354,19 +422,67 @@ export default function ManageFilePage() {
                       <Archive className="h-5 w-5 mr-2" />
                       Archive Contents ({fileInfo.files?.length || 0} files)
                     </span>
-                    <Button size="sm" className="hover:scale-105 transition-transform">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Files
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        multiple
+                        ref={fileInputRef}
+                        accept="*"
+                        onChange={handleAddFiles}
+                        disabled={updateLoading}
+                        style={{ display: 'none' }}
+                        id="add-files-input"
+                      />
+                      <label htmlFor="add-files-input">
+                        <Button size="sm" className="hover:scale-105 transition-transform" asChild>
+                          <span>Add Files</span>
+                        </Button>
+                      </label>
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-64">
                     <div className="space-y-2">
-                      {fileInfo.files?.map((file) => (
-                        <div key={file.id} className="flex items-center justify-between py-2 px-3 bg-muted/30 rounded-lg">
+                      {/* Existing files from metadata */}
+                      {fileInfo.files?.map((file) => {
+                        const isMarkedForDelete = filesToDelete.includes(file.file_token);
+                        return (
+                          <div key={file.file_token} className={`flex items-center justify-between py-2 px-3 rounded-lg ${isMarkedForDelete ? 'bg-red-100' : 'bg-muted/30'}`}>
+                            <div className="flex items-center space-x-2">
+                              <FileText className={`h-4 w-4 ${isMarkedForDelete ? 'text-red-600' : 'text-muted-foreground'}`} />
+                              <span className={`text-sm font-medium ${isMarkedForDelete ? 'line-through text-red-600' : ''}`}>{file.file_name}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {formatFileSize(file.size)}
+                              </span>
+                            </div>
+                            {isMarkedForDelete ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleUndoDeleteExistingFile(file.file_token)}
+                                className="text-green-600 hover:text-green-800"
+                              >
+                                Undo
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteExistingFile(file.file_token)}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {/* Pending files to be added */}
+                      {pendingFiles.map((file, idx) => (
+                        <div key={file.name + file.size + idx} className="flex items-center justify-between py-2 px-3 bg-yellow-50 rounded-lg">
                           <div className="flex items-center space-x-2">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <FileText className="h-4 w-4 text-yellow-600" />
                             <span className="text-sm font-medium">{file.name}</span>
                             <span className="text-xs text-muted-foreground">
                               {formatFileSize(file.size)}
@@ -375,15 +491,23 @@ export default function ManageFilePage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteFile(file.id)}
+                            onClick={() => handleRemovePendingFile(idx)}
                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <X className="h-4 w-4" />
                           </Button>
                         </div>
                       ))}
                     </div>
                   </ScrollArea>
+                  {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
+                  <Button
+                    onClick={handleUpdateFiles}
+                    className="w-full mt-4"
+                    disabled={pendingFiles.length === 0 && filesToDelete.length === 0 || updateLoading}
+                  >
+                    {updateLoading ? 'Updating...' : 'Update Archive'}
+                  </Button>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -456,7 +580,7 @@ export default function ManageFilePage() {
                       <p className="font-medium">Expiry Date</p>
                       <p className="text-sm text-muted-foreground">Automatic deletion date</p>
                     </div>
-                    <span className="text-sm font-medium">{fileInfo.expiryDate.toLocaleDateString()}</span>
+                    <span className="text-sm font-medium">{new Date(fileInfo.expiryDate).toLocaleDateString()}</span>
                   </div>
                   
                   <div className="pt-4 border-t border-border/50">
