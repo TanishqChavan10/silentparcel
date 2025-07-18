@@ -9,19 +9,19 @@ export async function GET(
     const { token } = params;
     let fileRecord = null;
     let supabaseError = null;
-    // Try zip_metadata first
+    // Try zip_file_metadata first
     let res = await supabaseAdmin
-      .from('zip_metadata')
+      .from('zip_file_metadata')
       .select('*')
       .eq('download_token', token)
       .single();
     fileRecord = res.data;
     supabaseError = res.error;
-    let table = 'zip_metadata';
+    let table = 'zip_file_metadata';
     if (!fileRecord) {
       // Fallback to files table
       res = await supabaseAdmin
-        .from('zip_metadata')
+        .from('zip_file_metadata')
         .select('*')
         .eq('download_token', token)
         .single();
@@ -38,11 +38,11 @@ export async function GET(
     if (fileRecord.expiry_date && new Date(fileRecord.expiry_date) < new Date()) {
       return NextResponse.json({ error: 'File has expired' }, { status: 410 });
     }
-    // Fetch file/folder tree from zip_subfile_contents if zip_metadata
+    // Fetch file/folder tree from zip_subfile_metadata if zip_file_metadata
     let subfiles = [];
-    if (table === 'zip_metadata') {
+    if (table === 'zip_file_metadata') {
       const { data: subfileData, error: subfileError } = await supabaseAdmin
-        .from('zip_subfile_contents')
+        .from('zip_subfile_metadata')
         .select('file_name, file_path, size, mime_type, file_token, extracted, downloaded_at')
         .eq('zip_id', fileRecord.id);
       if (subfileError) {

@@ -9,9 +9,3 @@ options like whether you want to add something or you want to just like delete s
  will add or delete the files after confirming it it will give news if file and upload it to the
   same id same token the only thing which will be different would be the zip file and the update
    timing
-
-the following colummns would only update:
-appwrite_id
-uploaded_at 
-uploaded_by
-original_name   // since new zip would be uploaded so this name will be changes though token is same 

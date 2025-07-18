@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
     const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
     // Store file metadata in Supabase, including Appwrite file UID
-    const { data: fileRecord, error: fileInsertError } = await supabaseAdmin.from('zip_metadata').insert([
+    const { data: fileRecord, error: fileInsertError } = await supabaseAdmin.from('zip_file_metadata').insert([
       {
         original_name: zipName,
         size: zipBuffer.length,
@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
         is_active: true,
         uploaded_at: new Date().toISOString(),
         uploaded_by: getClientIP(request),
-        last_downloaded_at: null,
+        // last_downloaded_at: null,
         appwrite_id: uploadedFile.$id // Store Appwrite file UID
       }
     ]).select().single();
@@ -224,9 +224,9 @@ export async function POST(request: NextRequest) {
       mime_type: meta.mime_type,
       file_token: generateSecureId(),
       extracted: false,
-      downloaded_at: null
+      // downloaded_at: null
     }));
-    const { error: subfileInsertError } = await supabaseAdmin.from('zip_subfile_contents').insert(subfileRows);
+    const { error: subfileInsertError } = await supabaseAdmin.from('zip_subfile_metadata').insert(subfileRows);
     if (subfileInsertError) {
       logger.error('Supabase subfile insert error:', subfileInsertError);
       return NextResponse.json(

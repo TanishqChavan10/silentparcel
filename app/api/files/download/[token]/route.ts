@@ -76,9 +76,9 @@ export async function GET(
     const password = searchParams.get("password");
     const meta = searchParams.get("meta");
 
-    // Fetch file metadata from zip_metadata
+    // Fetch file metadata from zip_file_metadata
     const { data: fileRecord, error: supabaseError } = await supabaseAdmin
-      .from("zip_metadata")
+      .from("zip_file_metadata")
       .select("*")
       .eq("download_token", token)
       .single();
@@ -191,7 +191,7 @@ export async function GET(
         shouldDeactivate = true;
       }
       const { error: updateError } = await supabaseAdmin
-        .from("zip_metadata")
+        .from("zip_file_metadata")
         .update({
           download_count: newDownloadCount,
           last_downloaded_at: now.toISOString(),
@@ -210,11 +210,11 @@ export async function GET(
           await storage.deleteFile(BUCKETS.FILES, fileRecord.appwrite_id);
           // Delete from Supabase
           const { error: deleteError } = await supabaseAdmin
-            .from("zip_metadata")
+            .from("zip_file_metadata")
             .delete()
             .eq("id", fileRecord.id);
           if (deleteError) {
-            console.error('Failed to delete zip_metadata row:', deleteError);
+            console.error('Failed to delete zip_file_metadata row:', deleteError);
           } else {
             console.log('Checkpoint: File and metadata deleted after expiry or max downloads');
             // Audit log for deletion
@@ -290,9 +290,9 @@ export async function POST(
       console.log('Checkpoint: No files/folders selected');
       return NextResponse.json({ error: "No files/folders selected" }, { status: 400 });
     }
-    // Fetch file metadata from zip_metadata
+    // Fetch file metadata from zip_file_metadata
     const { data: fileRecord, error: supabaseError } = await supabaseAdmin
-      .from("zip_metadata")
+      .from("zip_file_metadata")
       .select("*")
       .eq("download_token", token)
       .single();
@@ -417,7 +417,7 @@ export async function POST(
         shouldDeactivate = true;
       }
       const { error: updateError } = await supabaseAdmin
-        .from("zip_metadata")
+        .from("zip_file_metadata")
         .update({
           download_count: newDownloadCount,
           last_downloaded_at: now.toISOString(),
@@ -436,11 +436,11 @@ export async function POST(
           await storage.deleteFile(BUCKETS.FILES, fileRecord.appwrite_id);
           // Delete from Supabase
           const { error: deleteError } = await supabaseAdmin
-            .from("zip_metadata")
+            .from("zip_file_metadata")
             .delete()
             .eq("id", fileRecord.id);
           if (deleteError) {
-            console.error('Failed to delete zip_metadata row:', deleteError);
+            console.error('Failed to delete zip_file_metadata row:', deleteError);
           } else {
             console.log('Checkpoint: File and metadata deleted after expiry or max downloads');
             // Audit log for deletion
