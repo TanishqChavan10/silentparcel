@@ -259,7 +259,14 @@ export async function GET(
       },
     });
     console.log('Checkpoint: Returning file as download');
-    return NextResponse.json(fileBuffer);
+    // return NextResponse.json(fileBuffer);
+    const response = new NextResponse(fileBuffer);
+    response.headers.set("Content-type", "application/zip");
+    response.headers.set("Content-Disposition", `attachment; filename="${fileRecord.original_name}"`);
+    // response.headers.set("content-disposition", 'attachment; filename="${fileRecord.original_name}"')
+    // response.headers.set("content-disposition", `attachment; filename="${fileRecord.original_name}"`);
+    // response.headers.set("Content-Disposition", 'attachment; filename="${fileRecord.original_name}"');
+    return response;
   } catch (error) {
     console.error("Download error:", error);
     return NextResponse.json(
