@@ -59,7 +59,8 @@ type FileTreeNode = {
 };
 
 function buildFileTree(files: (Subfile | File & { webkitRelativePath?: string })[], status: 'existing' | 'to-add'): FileTreeNode[] {
-  const root: { [key: string]: FileTreeNode } = {};
+  // Build a nested object tree first
+  const root: { [key: string]: any } = {};
   for (const file of files) {
     const relPath = (file as any).file_path || (file as any).webkitRelativePath || (file as any).name;
     const parts = relPath.split('/');
@@ -73,7 +74,7 @@ function buildFileTree(files: (Subfile | File & { webkitRelativePath?: string })
           name: part,
           path: currPath,
           isFolder: i < parts.length - 1,
-          children: i < parts.length - 1 ? [] : undefined,
+          children: i < parts.length - 1 ? {} : undefined,
           status: i === parts.length - 1 ? status : 'existing',
         };
       }
@@ -81,10 +82,17 @@ function buildFileTree(files: (Subfile | File & { webkitRelativePath?: string })
         node[part].file = file;
         if ((file as any).file_token) node[part].file_token = (file as any).file_token;
       }
-      node = node[part].children as any || {};
+      node = node[part].children || {};
     }
   }
-  return Object.values(root);
+  // Convert object tree to array tree for rendering
+  function toArrayTree(obj: any): FileTreeNode[] {
+    return Object.values(obj).map((n: any) => ({
+      ...n,
+      children: n.children ? toArrayTree(n.children) : undefined,
+    }));
+  }
+  return toArrayTree(root);
 }
 
 function mergeFileTrees(existing: FileTreeNode[], toAdd: FileTreeNode[]): FileTreeNode[] {
