@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Download, Lock, Shield, AlertTriangle, FileText, Archive, Edit, Folder } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -31,51 +31,191 @@ type FlatTreeItem = {
   isLeaf: boolean;
 };
 
-function buildTree(files: Subfile[]): TreeNode {
-  const root: TreeNode = {};
+// --- Tree Utilities ---
+type FileTreeNode = {
+  name: string;
+  path: string;
+  isFolder: boolean;
+  children?: FileTreeNode[];
+  file?: Subfile;
+};
+function buildFileTree(files: Subfile[]): FileTreeNode[] {
+  // Build a nested object tree first
+  const root: { [key: string]: any } = {};
   for (const file of files) {
     const parts = file.file_path.split('/');
-    let node: TreeNode = root;
+    let node = root;
+    let currPath = '';
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
+      currPath = currPath ? currPath + '/' + part : part;
       if (!node[part]) {
-        node[part] = i === parts.length - 1 ? { ...file, __isLeaf: true } : {};
+        node[part] = {
+          name: part,
+          path: currPath,
+          isFolder: i < parts.length - 1,
+          children: i < parts.length - 1 ? {} : undefined,
+        };
       }
-      node = node[part] as TreeNode;
+      if (i === parts.length - 1) {
+        node[part].file = file;
+      }
+      node = node[part].children || {};
     }
   }
-  return root;
+  // Convert object tree to array tree for rendering
+  function toArrayTree(obj: any): FileTreeNode[] {
+    return Object.values(obj).map((n: any) => ({
+      ...n,
+      children: n.children ? toArrayTree(n.children) : undefined,
+    }));
+  }
+  return toArrayTree(root);
 }
 
-function flattenTree(tree: TreeNode, prefix = ''): FlatTreeItem[] {
-  let result: FlatTreeItem[] = [];
-  for (const key in tree) {
-    const node = tree[key];
-    const path = prefix ? `${prefix}/${key}` : key;
-    if ((node as any).__isLeaf) {
-      result.push({ path, name: key, isLeaf: true });
+function getAllPaths(nodes: FileTreeNode[]): string[] {
+  let paths: string[] = [];
+  for (const node of nodes) {
+    if (node.isFolder && node.children) {
+      paths.push(node.path);
+      paths = paths.concat(getAllPaths(node.children));
     } else {
-      result.push({ path, name: key, isLeaf: false });
-      result = result.concat(flattenTree(node as TreeNode, path));
+      paths.push(node.path);
     }
   }
-  return result;
+  return paths;
+}
+
+function getAllLeafPaths(nodes: FileTreeNode[]): string[] {
+  let paths: string[] = [];
+  for (const node of nodes) {
+    if (node.isFolder && node.children) {
+      paths = paths.concat(getAllLeafPaths(node.children));
+    } else {
+      paths.push(node.path);
+    }
+  }
+  return paths;
+}
+
+// --- TreeCheckbox component for indeterminate logic ---
+type TreeCheckboxProps = {
+  checked: boolean;
+  indeterminate: boolean;
+  onChange: () => void;
+  id: string;
+};
+function TreeCheckbox({ checked, indeterminate, onChange, id }: TreeCheckboxProps) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+  return <input ref={ref} type="checkbox" checked={checked} onChange={onChange} id={id} />;
 }
 
 export default function FileDownloadPage() {
-  const params = useParams();
-  const [password, setPassword] = useState('');
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [fileExists, setFileExists] = useState(true);
-  const [fileInfo, setFileInfo] = useState<any>(null);
-  const [fileTree, setFileTree] = useState<TreeNode>({});
+  // --- State ---
+  const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
   const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
   const [showEditToken, setShowEditToken] = useState(false);
   const [editToken, setEditToken] = useState('');
-
+  const params = useParams();
+  const [fileExists, setFileExists] = useState(true);
+  const [fileInfo, setFileInfo] = useState<any>(null);
+  const [password, setPassword] = useState('');
+  const [isUnlocked, setIsUnlocked] = useState(false);
   const fileId = params.id;
+
+  // --- Effect: Build initial tree from fileInfo ---
+  useEffect(() => {
+    if (fileInfo?.files) {
+      setFileTree(buildFileTree(fileInfo.files));
+      // Expand root folders by default
+      setExpandedFolders(new Set(fileInfo.files.map((f: any) => f.file_path.split('/')[0])));
+    }
+  }, [fileInfo]);
+
+  // --- Selection Logic ---
+  const handleSelect = (path: string, isFolder: boolean, children?: FileTreeNode[]) => {
+    if (isFolder && children) {
+      // Select/deselect all children recursively
+      const leafPaths = getAllLeafPaths(children);
+      setSelectedPaths(prev => {
+        const allSelected = leafPaths.every(p => prev.includes(p));
+        if (allSelected) {
+          // Deselect all
+          return prev.filter(p => !leafPaths.includes(p));
+        } else {
+          // Select all
+          return Array.from(new Set([...prev, ...leafPaths]));
+        }
+      });
+    } else {
+      setSelectedPaths(prev => prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]);
+    }
+  };
+  const handleSelectAll = () => {
+    setSelectedPaths(getAllLeafPaths(fileTree));
+  };
+  const handleClear = () => {
+    setSelectedPaths([]);
+  };
+  const toggleFolder = (path: string) => {
+    setExpandedFolders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(path)) newSet.delete(path);
+      else newSet.add(path);
+      return newSet;
+    });
+  };
+
+  // --- Render Tree ---
+  function renderTree(nodes: FileTreeNode[], depth = 0) {
+    return nodes.map(node => {
+      const isExpanded = expandedFolders.has(node.path);
+      const allLeafs = getAllLeafPaths([node]);
+      const checked = node.isFolder ? allLeafs.every(p => selectedPaths.includes(p)) : selectedPaths.includes(node.path);
+      const some = node.isFolder ? allLeafs.some(p => selectedPaths.includes(p)) : false;
+      const indeterminate = node.isFolder && some && !checked;
+      return (
+        <div key={node.path} style={{ marginLeft: depth * 16 }}>
+          {node.isFolder ? (
+            <div className="flex items-center">
+              <button type="button" onClick={() => toggleFolder(node.path)} className="mr-1 focus:outline-none">
+                {isExpanded ? <span style={{display:'inline-block',width:16}}>&#9660;</span> : <span style={{display:'inline-block',width:16}}>&#9654;</span>}
+              </button>
+              <TreeCheckbox
+                checked={checked}
+                indeterminate={indeterminate}
+                onChange={() => handleSelect(node.path, node.isFolder, node.children)}
+                id={node.path}
+              />
+              <Folder className="h-4 w-4 text-muted-foreground ml-1" />
+              <label htmlFor={node.path} className="ml-1 text-sm cursor-pointer select-none">{node.name}</label>
+            </div>
+          ) : (
+            <div className="flex items-center">
+              <span style={{ width: 32, display: 'inline-block' }} />
+              <TreeCheckbox
+                checked={checked}
+                indeterminate={false}
+                onChange={() => handleSelect(node.path, false)}
+                id={node.path}
+              />
+              <FileText className="h-4 w-4 text-muted-foreground ml-1" />
+              <label htmlFor={node.path} className="ml-1 text-sm cursor-pointer select-none">{node.name}</label>
+            </div>
+          )}
+          {node.isFolder && isExpanded && node.children && (
+            <div>{renderTree(node.children, depth + 1)}</div>
+          )}
+        </div>
+      );
+    });
+  }
 
   useEffect(() => {
     const fetchMeta = async () => {
@@ -85,7 +225,7 @@ export default function FileDownloadPage() {
         const data = await res.json();
         setFileInfo(data);
         if (data.files && data.files.length > 0) {
-          setFileTree(buildTree(data.files));
+          // setFileTree(buildTree(data.files)); // This line is no longer needed
         }
         setFileExists(true);
       } else {
@@ -112,16 +252,6 @@ export default function FileDownloadPage() {
     setError('');
     // Try to fetch metadata with password (simulate check)
     setIsUnlocked(true); // In production, validate password server-side
-  };
-
-  const handleSelect = (path: string) => {
-    setSelectedPaths((prev) =>
-      prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path]
-    );
-  };
-
-  const handleSelectAll = () => {
-    setSelectedPaths(flattenTree(fileTree).map((f) => f.path));
   };
 
   const handleDownloadSelected = async () => {
@@ -322,24 +452,9 @@ export default function FileDownloadPage() {
               <CardContent>
                 <div className="mb-2">
                   <Button size="sm" variant="outline" onClick={handleSelectAll} className="mr-2">Select All</Button>
-                  <Button size="sm" variant="outline" onClick={() => setSelectedPaths([])}>Clear</Button>
+                  <Button size="sm" variant="outline" onClick={handleClear}>Clear</Button>
                 </div>
-                <div className="space-y-1 max-h-60 overflow-y-auto border rounded p-2 bg-muted/20">
-                  {flattenTree(fileTree).map((item) => (
-                    <div key={item.path} className="flex items-center gap-2 pl-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedPaths.includes(item.path)}
-                        onChange={() => handleSelect(item.path)}
-                        id={item.path}
-                      />
-                      {item.isLeaf ? <FileText className="h-4 w-4 text-muted-foreground" /> : <Folder className="h-4 w-4 text-muted-foreground" />}
-                      <label htmlFor={item.path} className="text-sm cursor-pointer select-none">
-                        {item.name}
-                      </label>
-                    </div>
-                  ))}
-                </div>
+                <div className="space-y-1 max-h-60 overflow-y-auto border rounded p-2 bg-muted/20">{renderTree(fileTree)}</div>
                 <div className="flex gap-2 mt-4">
                   <Button
                     onClick={handleDownloadSelected}

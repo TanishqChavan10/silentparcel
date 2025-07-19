@@ -47,6 +47,81 @@ interface AccessLog {
   userAgent: string;
 }
 
+// --- Tree Utilities ---
+type FileTreeNode = {
+  name: string;
+  path: string;
+  isFolder: boolean;
+  children?: FileTreeNode[];
+  file?: Subfile | File;
+  status: 'existing' | 'to-add' | 'to-delete';
+  file_token?: string; // for existing files
+};
+
+function buildFileTree(files: (Subfile | File & {webkitRelativePath?: string})[], status: 'existing' | 'to-add'): FileTreeNode[] {
+  const root: {[key: string]: FileTreeNode} = {};
+  for (const file of files) {
+    const relPath = (file as any).file_path || (file as any).webkitRelativePath || (file as any).name;
+    const parts = relPath.split('/');
+    let node = root;
+    let currPath = '';
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      currPath = currPath ? currPath + '/' + part : part;
+      if (!node[part]) {
+        node[part] = {
+          name: part,
+          path: currPath,
+          isFolder: i < parts.length - 1,
+          children: i < parts.length - 1 ? [] : undefined,
+          status: i === parts.length - 1 ? status : 'existing',
+        };
+      }
+      if (i === parts.length - 1) {
+        node[part].file = file;
+        if ((file as any).file_token) node[part].file_token = (file as any).file_token;
+      }
+      node = node[part].children as any || {};
+    }
+  }
+  return Object.values(root);
+}
+
+function mergeFileTrees(existing: FileTreeNode[], toAdd: FileTreeNode[]): FileTreeNode[] {
+  // Recursively merge two trees, preferring to-add status for new files
+  const map = new Map<string, FileTreeNode>();
+  for (const node of existing) map.set(node.path, {...node});
+  for (const node of toAdd) {
+    if (map.has(node.path)) {
+      const exist = map.get(node.path)!;
+      if (exist.isFolder && node.children && exist.children) {
+        exist.children = mergeFileTrees(exist.children, node.children);
+      } else {
+        exist.status = node.status; // to-add overrides
+        exist.file = node.file;
+      }
+    } else {
+      map.set(node.path, {...node});
+    }
+  }
+  return Array.from(map.values());
+}
+
+// --- Fix markNodeAndChildrenForDelete/unmarkNodeAndChildrenForDelete ---
+function markNodeAndChildrenForDelete(node: FileTreeNode): FileTreeNode {
+  node.status = 'to-delete';
+  if (node.children) node.children = node.children.map(markNodeAndChildrenForDelete);
+  return node;
+}
+function unmarkNodeAndChildrenForDelete(node: FileTreeNode): FileTreeNode {
+  node.status = node.file ? 'existing' : 'to-add';
+  if (node.children) node.children = node.children.map(unmarkNodeAndChildrenForDelete);
+  return node;
+}
+
+// --- State ---
+const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
+
 export default function ManageFilePage() {
   const params = useParams();
   const router = useRouter();
@@ -86,6 +161,13 @@ export default function ManageFilePage() {
     }
   };
 
+  // --- Effect: Build initial tree from fileInfo ---
+  useEffect(() => {
+    if (fileInfo?.files) {
+      setFileTree(buildFileTree(fileInfo.files, 'existing'));
+    }
+  }, [fileInfo]);
+
   useEffect(() => {
     if (isAuthenticated) {
       loadFileData();
@@ -124,17 +206,38 @@ export default function ManageFilePage() {
     }
   };
 
-  // Handler for adding files to pendingFiles
+  // --- Add Files ---
   const handleAddFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
-    const filesArray = Array.from(e.target.files ?? []); // Fix linter error
-    setPendingFiles(prev => [...prev, ...filesArray]);
+    const filesArray = Array.from(e.target.files ?? []);
+    const toAddTree = buildFileTree(filesArray, 'to-add');
+    setFileTree(prev => mergeFileTrees(prev, toAddTree));
     e.target.value = '';
   };
 
-  // Handler for removing a pending file
-  const handleRemovePendingFile = (idx: number) => {
-    setPendingFiles(prev => prev.filter((_, i) => i !== idx));
+  // --- Handler functions for tree actions ---
+  const handleUndoDeleteNode = (path: string) => {
+    setFileTree(prev => prev.map(node => {
+      if (node.path === path) {
+        return unmarkNodeAndChildrenForDelete({ ...node });
+      } else if (node.children) {
+        return { ...node, children: node.children.map(child => child.path === path ? unmarkNodeAndChildrenForDelete({ ...child }) : child) };
+      }
+      return node;
+    }));
+  };
+  const handleDeleteNode = (path: string) => {
+    setFileTree(prev => prev.map(node => {
+      if (node.path === path) {
+        return markNodeAndChildrenForDelete({ ...node });
+      } else if (node.children) {
+        return { ...node, children: node.children.map(child => child.path === path ? markNodeAndChildrenForDelete({ ...child }) : child) };
+      }
+      return node;
+    }));
+  };
+  const handleRemovePendingFile = (path: string) => {
+    setFileTree(prev => prev.filter(node => node.path !== path));
   };
 
   // Handler for marking an existing file for deletion
@@ -147,19 +250,35 @@ export default function ManageFilePage() {
     setFilesToDelete(prev => prev.filter(token => token !== fileToken));
   };
 
-  // Handler for updating files (send to backend)
+  // --- Update Files Handler ---
   const handleUpdateFiles = async () => {
-    if (pendingFiles.length === 0 && filesToDelete.length === 0) return;
+    // Gather files to add and tokens to delete
+    const filesToAdd: File[] = [];
+    const relPathsToAdd: string[] = [];
+    const filesToDelete: string[] = [];
+    function traverse(nodes: FileTreeNode[]) {
+      for (const node of nodes) {
+        if (node.status === 'to-add' && node.file instanceof File) {
+          filesToAdd.push(node.file);
+          relPathsToAdd.push(node.path);
+        }
+        if (node.status === 'to-delete' && node.file_token) {
+          filesToDelete.push(node.file_token);
+        }
+        if (node.children) traverse(node.children);
+      }
+    }
+    traverse(fileTree);
+    if (filesToAdd.length === 0 && filesToDelete.length === 0) return;
     setUpdateLoading(true);
     setError('');
     try {
       const formData = new FormData();
-      pendingFiles.forEach(file => {
+      filesToAdd.forEach((file, i) => {
         formData.append('files', file);
-        formData.append('relativePaths', (file as any).webkitRelativePath || file.name);
+        formData.append('relativePaths', relPathsToAdd[i]);
       });
       formData.append('editToken', editToken);
-      // Send files to delete as a JSON string
       formData.append('filesToDelete', JSON.stringify(filesToDelete));
       const res = await fetch(`/api/files/manage/${fileId}`, {
         method: 'POST',
@@ -170,8 +289,7 @@ export default function ManageFilePage() {
         setError(data.error || 'Failed to update file');
       } else {
         await loadFileData();
-        setPendingFiles([]);
-        setFilesToDelete([]);
+        setFileTree([]); // will be rebuilt from fileInfo
       }
     } catch (err) {
       setError('Failed to update file');
@@ -442,69 +560,12 @@ export default function ManageFilePage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="h-64">
-                    <div className="space-y-2">
-                      {/* Existing files from metadata */}
-                      {fileInfo.files?.map((file) => {
-                        const isMarkedForDelete = filesToDelete.includes(file.file_token);
-                        return (
-                          <div key={file.file_token} className={`flex items-center justify-between py-2 px-3 rounded-lg ${isMarkedForDelete ? 'bg-red-100' : 'bg-muted/30'}`}>
-                            <div className="flex items-center space-x-2">
-                              <FileText className={`h-4 w-4 ${isMarkedForDelete ? 'text-red-600' : 'text-muted-foreground'}`} />
-                              <span className={`text-sm font-medium ${isMarkedForDelete ? 'line-through text-red-600' : ''}`}>{file.file_name}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {formatFileSize(file.size)}
-                              </span>
-                            </div>
-                            {isMarkedForDelete ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleUndoDeleteExistingFile(file.file_token)}
-                                className="text-green-600 hover:text-green-800"
-                              >
-                                Undo
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteExistingFile(file.file_token)}
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        );
-                      })}
-                      {/* Pending files to be added */}
-                      {pendingFiles.map((file, idx) => (
-                        <div key={file.name + file.size + idx} className="flex items-center justify-between py-2 px-3 bg-yellow-50 rounded-lg">
-                          <div className="flex items-center space-x-2">
-                            <FileText className="h-4 w-4 text-yellow-600" />
-                            <span className="text-sm font-medium">{file.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {formatFileSize(file.size)}
-                            </span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemovePendingFile(idx)}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
+                  <ScrollArea className="h-64">{renderTree(fileTree)}</ScrollArea>
                   {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
                   <Button
                     onClick={handleUpdateFiles}
                     className="w-full mt-4"
-                    disabled={pendingFiles.length === 0 && filesToDelete.length === 0 || updateLoading}
+                    disabled={updateLoading}
                   >
                     {updateLoading ? 'Updating...' : 'Update Archive'}
                   </Button>
@@ -597,4 +658,36 @@ export default function ManageFilePage() {
       </div>
     </div>
   );
+}
+
+// --- Render Tree ---
+function renderTree(nodes: FileTreeNode[], depth = 0) {
+  function handleUndoDeleteNode(path: string): void {
+    throw new Error('Function not implemented.');
+  }
+
+  function handleDeleteNode(path: string): void {
+    throw new Error('Function not implemented.');
+  }
+
+  function handleRemovePendingFile(path: string): void {
+    throw new Error('Function not implemented.');
+  }
+
+  return nodes.map(node => (
+    <div key={node.path} style={{marginLeft: depth * 16}} className={`flex items-center py-1 px-2 rounded ${node.status === 'to-delete' ? 'bg-red-100' : node.status === 'to-add' ? 'bg-yellow-50' : 'bg-muted/30'}`}>
+      {node.isFolder ? <Archive className="h-4 w-4 mr-1 text-muted-foreground" /> : <FileText className="h-4 w-4 mr-1 text-muted-foreground" />}
+      <span className={`flex-1 text-sm ${node.status === 'to-delete' ? 'line-through text-red-600' : node.status === 'to-add' ? 'text-yellow-700' : ''}`}>{node.name}</span>
+      {node.status === 'to-delete' ? (
+        <Button variant="ghost" size="sm" onClick={() => handleUndoDeleteNode(node.path)} className="text-green-600 hover:text-green-800">Undo</Button>
+      ) : node.status === 'existing' ? (
+        <Button variant="ghost" size="sm" onClick={() => handleDeleteNode(node.path)} className="text-destructive hover:text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button>
+      ) : (
+        <Button variant="ghost" size="sm" onClick={() => handleRemovePendingFile(node.path)} className="text-destructive hover:text-destructive hover:bg-destructive/10"><X className="h-4 w-4" /></Button>
+      )}
+      {node.children && node.children.length > 0 && (
+        <div className="w-full">{renderTree(node.children, depth + 1)}</div>
+      )}
+    </div>
+  ));
 }
