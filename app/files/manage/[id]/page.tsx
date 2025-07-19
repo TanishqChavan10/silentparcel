@@ -58,8 +58,8 @@ type FileTreeNode = {
   file_token?: string; // for existing files
 };
 
-function buildFileTree(files: (Subfile | File & {webkitRelativePath?: string})[], status: 'existing' | 'to-add'): FileTreeNode[] {
-  const root: {[key: string]: FileTreeNode} = {};
+function buildFileTree(files: (Subfile | File & { webkitRelativePath?: string })[], status: 'existing' | 'to-add'): FileTreeNode[] {
+  const root: { [key: string]: FileTreeNode } = {};
   for (const file of files) {
     const relPath = (file as any).file_path || (file as any).webkitRelativePath || (file as any).name;
     const parts = relPath.split('/');
@@ -90,7 +90,7 @@ function buildFileTree(files: (Subfile | File & {webkitRelativePath?: string})[]
 function mergeFileTrees(existing: FileTreeNode[], toAdd: FileTreeNode[]): FileTreeNode[] {
   // Recursively merge two trees, preferring to-add status for new files
   const map = new Map<string, FileTreeNode>();
-  for (const node of existing) map.set(node.path, {...node});
+  for (const node of existing) map.set(node.path, { ...node });
   for (const node of toAdd) {
     if (map.has(node.path)) {
       const exist = map.get(node.path)!;
@@ -101,7 +101,7 @@ function mergeFileTrees(existing: FileTreeNode[], toAdd: FileTreeNode[]): FileTr
         exist.file = node.file;
       }
     } else {
-      map.set(node.path, {...node});
+      map.set(node.path, { ...node });
     }
   }
   return Array.from(map.values());
@@ -119,12 +119,14 @@ function unmarkNodeAndChildrenForDelete(node: FileTreeNode): FileTreeNode {
   return node;
 }
 
-// --- State ---
-const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
+
 
 export default function ManageFilePage() {
   const params = useParams();
   const router = useRouter();
+    // --- State ---
+  const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [editToken, setEditToken] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState('');
@@ -165,6 +167,8 @@ export default function ManageFilePage() {
   useEffect(() => {
     if (fileInfo?.files) {
       setFileTree(buildFileTree(fileInfo.files, 'existing'));
+      // Expand root folders by default
+      setExpandedFolders(new Set(fileInfo.files.map((f: any) => (f.file_path || f.webkitRelativePath || f.name).split('/')[0])));
     }
   }, [fileInfo]);
 
@@ -250,6 +254,21 @@ export default function ManageFilePage() {
     setFilesToDelete(prev => prev.filter(token => token !== fileToken));
   };
 
+  // --- Folder expand/collapse logic ---
+  const toggleFolder = (path: string) => {
+    setExpandedFolders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(path)) newSet.delete(path);
+      else newSet.add(path);
+      return newSet;
+    });
+  };
+
+  // --- Handler for viewing as receiver ---
+  const viewAsReceiver = () => {
+    router.push(`/files/${fileId}`);
+  };
+
   // --- Update Files Handler ---
   const handleUpdateFiles = async () => {
     // Gather files to add and tokens to delete
@@ -298,37 +317,48 @@ export default function ManageFilePage() {
     }
   };
 
-  const viewAsReceiver = () => {
-    router.push(`/files/${fileId}`);
-  };
-
-  // Handler for uploading a new ZIP file
-  const handleZipUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    const zipFile = e.target.files[0];
-    setUploading(true);
-    setError('');
-    try {
-      const formData = new FormData();
-      formData.append('file', zipFile);
-      formData.append('editToken', editToken);
-      const res = await fetch(`/api/files/manage/${fileId}`, {
-        method: 'POST',
-        body: formData,
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || 'Failed to update file');
-      } else {
-        await loadFileData();
-      }
-    } catch (err) {
-      setError('Failed to update file');
-    } finally {
-      setUploading(false);
-      e.target.value = '';
-    }
-  };
+  // --- Render Tree ---
+  function renderTree(nodes: FileTreeNode[], depth = 0) {
+    return nodes.map(node => {
+      const isExpanded = expandedFolders.has(node.path);
+      return (
+        <div key={node.path} style={{ marginLeft: depth * 16 }}>
+          {node.isFolder ? (
+            <div className="flex items-center">
+              <button type="button" onClick={() => toggleFolder(node.path)} className="mr-1 focus:outline-none">
+                {isExpanded ? <span style={{ display: 'inline-block', width: 16 }}>&#9660;</span> : <span style={{ display: 'inline-block', width: 16 }}>&#9654;</span>}
+              </button>
+              <Archive className="h-4 w-4 mr-1 text-muted-foreground" />
+              <span className={`flex-1 text-sm ${node.status === 'to-delete' ? 'line-through text-red-600' : node.status === 'to-add' ? 'text-yellow-700' : ''}`}>{node.name}</span>
+              {node.status === 'to-delete' ? (
+                <Button variant="ghost" size="sm" onClick={() => handleUndoDeleteNode(node.path)} className="text-green-600 hover:text-green-800">Undo</Button>
+              ) : node.status === 'existing' ? (
+                <Button variant="ghost" size="sm" onClick={() => handleDeleteNode(node.path)} className="text-destructive hover:text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button>
+              ) : (
+                <Button variant="ghost" size="sm" onClick={() => handleRemovePendingFile(node.path)} className="text-destructive hover:text-destructive hover:bg-destructive/10"><X className="h-4 w-4" /></Button>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center">
+              <span style={{ width: 32, display: 'inline-block' }} />
+              <FileText className="h-4 w-4 mr-1 text-muted-foreground" />
+              <span className={`flex-1 text-sm ${node.status === 'to-delete' ? 'line-through text-red-600' : node.status === 'to-add' ? 'text-yellow-700' : ''}`}>{node.name}</span>
+              {node.status === 'to-delete' ? (
+                <Button variant="ghost" size="sm" onClick={() => handleUndoDeleteNode(node.path)} className="text-green-600 hover:text-green-800">Undo</Button>
+              ) : node.status === 'existing' ? (
+                <Button variant="ghost" size="sm" onClick={() => handleDeleteNode(node.path)} className="text-destructive hover:text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button>
+              ) : (
+                <Button variant="ghost" size="sm" onClick={() => handleRemovePendingFile(node.path)} className="text-destructive hover:text-destructive hover:bg-destructive/10"><X className="h-4 w-4" /></Button>
+              )}
+            </div>
+          )}
+          {node.isFolder && isExpanded && node.children && (
+            <div>{renderTree(node.children, depth + 1)}</div>
+          )}
+        </div>
+      );
+    });
+  }
 
   if (!isAuthenticated) {
     return (
@@ -369,9 +399,9 @@ export default function ManageFilePage() {
                   <p className="text-sm text-destructive">{error}</p>
                 )}
               </div>
-              <Button 
-                onClick={handleAuthenticate} 
-                disabled={!editToken} 
+              <Button
+                onClick={handleAuthenticate}
+                disabled={!editToken}
                 className="w-full hover:scale-105 transition-transform"
               >
                 Access File Management
@@ -441,10 +471,10 @@ export default function ManageFilePage() {
             </Button>
           </Link>
           <div className="flex items-center space-x-2">
-            <Button 
+            <Button
               onClick={viewAsReceiver}
-              variant="outline" 
-              size="sm" 
+              variant="outline"
+              size="sm"
               className="hover:scale-105 transition-transform"
             >
               <Eye className="h-4 w-4 mr-2" />
@@ -472,7 +502,7 @@ export default function ManageFilePage() {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex flex-col items-end space-y-2">
                   <Badge variant={fileInfo.virusScanStatus === 'clean' ? 'default' : 'destructive'}>
                     <Shield className="h-3 w-3 mr-1" />
@@ -500,7 +530,7 @@ export default function ManageFilePage() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card className="bg-card/50 border-border/50">
               <CardContent className="pt-6">
                 <div className="text-center">
@@ -511,7 +541,7 @@ export default function ManageFilePage() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card className="bg-card/50 border-border/50">
               <CardContent className="pt-6">
                 <div className="text-center">
@@ -627,7 +657,7 @@ export default function ManageFilePage() {
                       {fileInfo.isPasswordProtected ? 'Enabled' : 'Disabled'}
                     </Badge>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Download Limit</p>
@@ -635,7 +665,7 @@ export default function ManageFilePage() {
                     </div>
                     <span className="text-sm font-medium">{fileInfo.maxDownloads}</span>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Expiry Date</p>
@@ -643,7 +673,7 @@ export default function ManageFilePage() {
                     </div>
                     <span className="text-sm font-medium">{new Date(fileInfo.expiryDate).toLocaleDateString()}</span>
                   </div>
-                  
+
                   <div className="pt-4 border-t border-border/50">
                     <Button variant="destructive" className="w-full hover:scale-105 transition-transform">
                       <Trash2 className="h-4 w-4 mr-2" />
@@ -658,36 +688,4 @@ export default function ManageFilePage() {
       </div>
     </div>
   );
-}
-
-// --- Render Tree ---
-function renderTree(nodes: FileTreeNode[], depth = 0) {
-  function handleUndoDeleteNode(path: string): void {
-    throw new Error('Function not implemented.');
-  }
-
-  function handleDeleteNode(path: string): void {
-    throw new Error('Function not implemented.');
-  }
-
-  function handleRemovePendingFile(path: string): void {
-    throw new Error('Function not implemented.');
-  }
-
-  return nodes.map(node => (
-    <div key={node.path} style={{marginLeft: depth * 16}} className={`flex items-center py-1 px-2 rounded ${node.status === 'to-delete' ? 'bg-red-100' : node.status === 'to-add' ? 'bg-yellow-50' : 'bg-muted/30'}`}>
-      {node.isFolder ? <Archive className="h-4 w-4 mr-1 text-muted-foreground" /> : <FileText className="h-4 w-4 mr-1 text-muted-foreground" />}
-      <span className={`flex-1 text-sm ${node.status === 'to-delete' ? 'line-through text-red-600' : node.status === 'to-add' ? 'text-yellow-700' : ''}`}>{node.name}</span>
-      {node.status === 'to-delete' ? (
-        <Button variant="ghost" size="sm" onClick={() => handleUndoDeleteNode(node.path)} className="text-green-600 hover:text-green-800">Undo</Button>
-      ) : node.status === 'existing' ? (
-        <Button variant="ghost" size="sm" onClick={() => handleDeleteNode(node.path)} className="text-destructive hover:text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button>
-      ) : (
-        <Button variant="ghost" size="sm" onClick={() => handleRemovePendingFile(node.path)} className="text-destructive hover:text-destructive hover:bg-destructive/10"><X className="h-4 w-4" /></Button>
-      )}
-      {node.children && node.children.length > 0 && (
-        <div className="w-full">{renderTree(node.children, depth + 1)}</div>
-      )}
-    </div>
-  ));
 }
