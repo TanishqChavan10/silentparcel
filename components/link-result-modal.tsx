@@ -37,7 +37,7 @@ export function LinkResultModal({ isOpen, downloadLink, editToken, fileName, onC
 
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-lg bg-background/95 backdrop-blur-sm border-border/50">
+      <DialogContent className="max-w-lg bg-background/95 backdrop-blur-xs border-border/50">
         <DialogHeader>
           <DialogTitle className="text-xl">Upload Complete! 🎉</DialogTitle>
           <DialogDescription>

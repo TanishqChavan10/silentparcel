@@ -139,7 +139,7 @@ export default function FilesPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border/40 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
+      <header className="border-b border-border/40 backdrop-blur-xs bg-background/80 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/">
             <Button variant="ghost" size="sm" className="hover:bg-accent/50">

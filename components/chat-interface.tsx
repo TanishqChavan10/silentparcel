@@ -141,7 +141,7 @@ export function ChatInterface({ roomId, roomPassword, onLeave }: ChatInterfacePr
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
-      <div className="border-b border-border/40 p-4 bg-background/80 backdrop-blur-sm flex-shrink-0">
+      <div className="border-b border-border/40 p-4 bg-background/80 backdrop-blur-xs shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div>
@@ -181,7 +181,7 @@ export function ChatInterface({ roomId, roomPassword, onLeave }: ChatInterfacePr
               {messages.map((msg) => (
                 <div key={msg.id} className="flex items-start space-x-3 max-w-full">
                   {msg.type !== 'system' && (
-                    <Avatar className="w-8 h-8 flex-shrink-0">
+                    <Avatar className="w-8 h-8 shrink-0">
                       <AvatarFallback className="text-xs" style={{ backgroundColor: users.find(u => u.name === msg.user)?.color + '20' }}>
                         {users.find(u => u.name === msg.user)?.avatar || '👤'}
                       </AvatarFallback>
@@ -203,9 +203,9 @@ export function ChatInterface({ roomId, roomPassword, onLeave }: ChatInterfacePr
                             {msg.user}
                           </span>
                           {users.find(u => u.name === msg.user)?.isAdmin && (
-                            <Crown className="h-3 w-3 text-yellow-500 flex-shrink-0" />
+                            <Crown className="h-3 w-3 text-yellow-500 shrink-0" />
                           )}
-                          <span className="text-xs text-muted-foreground flex-shrink-0">
+                          <span className="text-xs text-muted-foreground shrink-0">
                             {msg.timestamp.toLocaleTimeString()}
                           </span>
                         </div>
@@ -222,9 +222,9 @@ export function ChatInterface({ roomId, roomPassword, onLeave }: ChatInterfacePr
           </ScrollArea>
 
           {/* Message Input */}
-          <div className="border-t border-border/40 p-4 bg-background/50 flex-shrink-0">
+          <div className="border-t border-border/40 p-4 bg-background/50 shrink-0">
             <div className="flex space-x-2">
-              <Button variant="outline" size="icon" className="hover:scale-105 transition-transform flex-shrink-0">
+              <Button variant="outline" size="icon" className="hover:scale-105 transition-transform shrink-0">
                 <Paperclip className="h-4 w-4" />
               </Button>
               <Input
@@ -237,7 +237,7 @@ export function ChatInterface({ roomId, roomPassword, onLeave }: ChatInterfacePr
               <Button 
                 onClick={handleSendMessage} 
                 disabled={!message.trim()}
-                className="hover:scale-105 transition-transform flex-shrink-0"
+                className="hover:scale-105 transition-transform shrink-0"
               >
                 <Send className="h-4 w-4" />
               </Button>
@@ -246,8 +246,8 @@ export function ChatInterface({ roomId, roomPassword, onLeave }: ChatInterfacePr
         </div>
 
         {/* Users Sidebar */}
-        <div className="w-72 border-l border-border/40 bg-muted/20 flex-shrink-0 hidden md:flex flex-col">
-          <div className="p-4 border-b border-border/40 flex-shrink-0">
+        <div className="w-72 border-l border-border/40 bg-muted/20 shrink-0 hidden md:flex flex-col">
+          <div className="p-4 border-b border-border/40 shrink-0">
             <h3 className="font-semibold flex items-center">
               <Users className="h-4 w-4 mr-2" />
               Users ({users.length})
@@ -259,7 +259,7 @@ export function ChatInterface({ roomId, roomPassword, onLeave }: ChatInterfacePr
               {users.map((user) => (
                 <div key={user.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                   <div className="flex items-center space-x-3 min-w-0 flex-1">
-                    <Avatar className="w-8 h-8 flex-shrink-0">
+                    <Avatar className="w-8 h-8 shrink-0">
                       <AvatarFallback 
                         className="text-xs"
                         style={{ backgroundColor: user.color + '20' }}
@@ -275,7 +275,7 @@ export function ChatInterface({ roomId, roomPassword, onLeave }: ChatInterfacePr
                         >
                           {user.name}
                         </span>
-                        {user.isAdmin && <Crown className="h-3 w-3 text-yellow-500 flex-shrink-0" />}
+                        {user.isAdmin && <Crown className="h-3 w-3 text-yellow-500 shrink-0" />}
                       </div>
                       {user.id === currentUser?.id && (
                         <span className="text-xs text-muted-foreground">You</span>
@@ -286,11 +286,11 @@ export function ChatInterface({ roomId, roomPassword, onLeave }: ChatInterfacePr
                   {currentUser?.isAdmin && user.id !== currentUser.id && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 hover:scale-105 transition-transform flex-shrink-0">
+                        <Button variant="ghost" size="icon" className="h-6 w-6 hover:scale-105 transition-transform shrink-0">
                           <MoreVertical className="h-3 w-3" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent className="bg-background/95 backdrop-blur-sm border-border/50">
+                      <DropdownMenuContent className="bg-background/95 backdrop-blur-xs border-border/50">
                         <DropdownMenuItem onClick={() => handleKickUser(user.id)} className="cursor-pointer">
                           Kick User
                         </DropdownMenuItem>

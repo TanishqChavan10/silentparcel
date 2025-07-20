@@ -331,7 +331,7 @@ export default function ManageFilePage() {
         <div key={node.path} style={{ marginLeft: depth * 16 }}>
           {node.isFolder ? (
             <div className="flex items-center">
-              <button type="button" onClick={() => toggleFolder(node.path)} className="mr-1 focus:outline-none">
+              <button type="button" onClick={() => toggleFolder(node.path)} className="mr-1 focus:outline-hidden">
                 {isExpanded ? <span style={{ display: 'inline-block', width: 16 }}>&#9660;</span> : <span style={{ display: 'inline-block', width: 16 }}>&#9654;</span>}
               </button>
               <Archive className="h-4 w-4 mr-1 text-muted-foreground" />
@@ -369,7 +369,7 @@ export default function ManageFilePage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="border-b border-border/40 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
+        <header className="border-b border-border/40 backdrop-blur-xs bg-background/80 sticky top-0 z-50">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <Link href="/">
               <Button variant="ghost" size="sm" className="hover:bg-accent/50">
@@ -430,7 +430,7 @@ export default function ManageFilePage() {
   if (!fileInfo) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="border-b border-border/40 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
+        <header className="border-b border-border/40 backdrop-blur-xs bg-background/80 sticky top-0 z-50">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <Link href="/">
               <Button variant="ghost" size="sm" className="hover:bg-accent/50">
@@ -468,7 +468,7 @@ export default function ManageFilePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border/40 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
+      <header className="border-b border-border/40 backdrop-blur-xs bg-background/80 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/">
             <Button variant="ghost" size="sm" className="hover:bg-accent/50">

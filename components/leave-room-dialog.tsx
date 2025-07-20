@@ -15,7 +15,7 @@ interface LeaveRoomDialogProps {
 export function LeaveRoomDialog({ isOpen, onConfirm, onCancel, roomId }: LeaveRoomDialogProps) {
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onCancel()}>
-      <AlertDialogContent className="bg-background/95 backdrop-blur-sm border-border/50">
+      <AlertDialogContent className="bg-background/95 backdrop-blur-xs border-border/50">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center text-destructive">
             <AlertTriangle className="h-5 w-5 mr-2" />
