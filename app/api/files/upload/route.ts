@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     //     { error: 'Too many upload attempts. Please try again later.' },
     //     { status: 429 }
     //   );
-    // }    // check: keeping it off for development perspective
+    // }    // check: keeping it off for development perspective, preventing multiple file uploads
 
     const formData = await request.formData();
     // Debug: log all formData keys and values
@@ -76,26 +76,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify CAPTCHA   //check : for development purpose its turned off, switch on for production
-    // if (!captchaToken) {
-    //   return NextResponse.json(
-    //     { error: 'CAPTCHA verification required' },
-    //     { status: 400 }
-    //   );
-    // }
+    if (!captchaToken) {
+      return NextResponse.json(
+        { error: 'CAPTCHA verification required' },
+        { status: 400 }
+      );
+    }
 
-    // const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    //   body: `secret=${process.env.HCAPTCHA_SECRET_KEY}&response=${captchaToken}`
-    // });
+    const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `secret=${process.env.HCAPTCHA_SECRET_KEY}&response=${captchaToken}`
+    });
 
-    // const captchaData = await captchaResponse.json();
-    // if (!captchaData.success) {
-    //   return NextResponse.json(
-    //     { error: 'CAPTCHA verification failed' },
-    //     { status: 400 }
-    //   );
-    // }
+    const captchaData = await captchaResponse.json();
+    if (!captchaData.success) {
+      return NextResponse.json(
+        { error: 'CAPTCHA verification failed' },
+        { status: 400 }
+      );
+    }
 
     // Validate file
         // Validate file type and size

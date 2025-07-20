@@ -80,7 +80,6 @@ export function CaptchaModal({ isOpen, fileName, fileSize, onComplete, onClose }
           <div className="flex flex-col items-center space-y-2">
             <HCaptcha
               sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || ''}
-              // sitekey={'6b62cb22-d16e-442c-ab34-7424b04ccc94'}
               onVerify={handleVerify}
               ref={hcaptchaRef}
             />
@@ -90,7 +89,7 @@ export function CaptchaModal({ isOpen, fileName, fileSize, onComplete, onClose }
 
           <Button 
             onClick={onComplete}
-            disabled={captchaVerified} //check: add ! mark to hcaptcha work properly rn its disabled and will pass anyone
+            disabled={!captchaVerified} //check: add ! mark to hcaptcha work properly rn its disabled and will pass anyone
             className="w-full hover:scale-105 transition-transform"
           >
             Proceed with Upload

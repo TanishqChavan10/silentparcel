@@ -1,3 +1,4 @@
+// API route for downloading files or selected files from a ZIP archive using a token. Handles password protection, download limits, and audit logging.
 export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { storage, BUCKETS } from "@/lib/appwrite";
@@ -6,7 +7,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import AdmZip from "adm-zip";
 import stream from "stream";
 
-// Check if we're in a proper environment
+// Checks if the environment is properly configured for storage access
 function isProperlyConfigured() {
   return (
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -18,15 +19,14 @@ function isProperlyConfigured() {
   );
 }
 
-// Utility: Normalize Appwrite file download to Buffer
-// NOTE: If you get linter errors about Buffer/stream, ensure your tsconfig.json includes "node" in types and "esnext" or "es2020" in lib.
+// Converts Appwrite file download result to Buffer
 async function getAppwriteFileBuffer(filePromise: Promise<any>): Promise<Buffer> {
   if (!(filePromise && typeof filePromise.then === 'function')) {
-    throw new Error('getAppwriteFileBuffer expected a Promise, but received a non-Promise value. This usually means storage.getFileDownload is returning a URL. Check your Appwrite SDK version and usage.');
+    throw new Error('getAppwriteFileBuffer expected a Promise, but received a non-Promise value.');
   }
   const file = await filePromise;
-  // Debug log for unknown file type
   if (!Buffer.isBuffer(file) && !(file instanceof stream.Readable) && typeof file.arrayBuffer !== 'function') {
+    // Only log type, not full object, for security
     console.error('Unknown file type from Appwrite storage:', {
       type: typeof file,
       constructor: file && file.constructor && file.constructor.name,
@@ -48,7 +48,6 @@ async function getAppwriteFileBuffer(filePromise: Promise<any>): Promise<Buffer>
   if (typeof file.arrayBuffer === "function") {
     return Buffer.from(await file.arrayBuffer());
   }
-  // Fallback: handle ArrayBuffer or BufferSource
   if (file instanceof ArrayBuffer) {
     return Buffer.from(file);
   }
@@ -58,41 +57,42 @@ async function getAppwriteFileBuffer(filePromise: Promise<any>): Promise<Buffer>
   throw new Error("Unknown file type returned from Appwrite storage");
 }
 
+// Handles GET requests for file download
 export async function GET(
   request: NextRequest,
   { params }: { params: { token: string } }
 ) {
+  console.log('Download route: Start GET handler');
   if (!isProperlyConfigured()) {
-    console.log('Checkpoint: Service not properly configured');
+    console.log('Service not properly configured');
     return NextResponse.json(
       { error: "Service not properly configured" },
       { status: 503 }
     );
   }
-
   try {
     const { token } = params;
     const { searchParams } = new URL(request.url);
     const password = searchParams.get("password");
     const meta = searchParams.get("meta");
 
-    // Fetch file metadata from zip_file_metadata
+    // Fetch file metadata
+    console.log('Fetching file metadata from database');
     const { data: fileRecord, error: supabaseError } = await supabaseAdmin
       .from("zip_file_metadata")
       .select("*")
       .eq("download_token", token)
       .single();
-    console.log('Checkpoint: Fetched file metadata');
 
     if (supabaseError || !fileRecord) {
-      console.log('Checkpoint: File not found or expired');
+      console.log('File not found or expired');
       return NextResponse.json(
         { error: "File not found or expired" },
         { status: 404 }
       );
     }
     if (!fileRecord.is_active) {
-      console.log('Checkpoint: File has been deleted');
+      console.log('File has been deleted');
       return NextResponse.json(
         { error: "File has been deleted" },
         { status: 410 }
@@ -102,21 +102,21 @@ export async function GET(
       fileRecord.expiry_date &&
       new Date(fileRecord.expiry_date) < new Date()
     ) {
-      console.log('Checkpoint: File has expired');
+      console.log('File has expired');
       return NextResponse.json({ error: "File has expired" }, { status: 410 });
     }
     if (
       fileRecord.max_downloads &&
       fileRecord.download_count >= fileRecord.max_downloads
     ) {
-      console.log('Checkpoint: Download limit exceeded');
+      console.log('Download limit exceeded');
       return NextResponse.json(
         { error: "Download limit exceeded" },
         { status: 410 }
       );
     }
     if (meta === "1") {
-      console.log('Checkpoint: Returning file metadata');
+      console.log('Returning file metadata');
       const metadata = {
         id: fileRecord.id,
         name: fileRecord.original_name,
@@ -135,7 +135,7 @@ export async function GET(
     }
     if (fileRecord.password) {
       if (!password) {
-        console.log('Checkpoint: Password required but not provided');
+        console.log('Password required but not provided');
         return NextResponse.json(
           { error: "Password required", requiresPassword: true },
           { status: 401 }
@@ -146,42 +146,42 @@ export async function GET(
         fileRecord.password
       );
       if (!isValidPassword) {
-        console.log('Checkpoint: Invalid password provided');
+        console.log('Invalid password provided');
         return NextResponse.json(
           { error: "Invalid password" },
           { status: 401 }
         );
       }
-      console.log('Checkpoint: Password validated');
+      console.log('Password validated');
     }
     const appwriteId = fileRecord.appwrite_id;
     if (!appwriteId) {
-      console.log('Checkpoint: File storage reference missing');
+      console.log('File storage reference missing');
       return NextResponse.json(
         { error: "File storage reference missing" },
         { status: 500 }
       );
     }
-    // Download from Appwrite (ensure buffer)
+    // Download from Appwrite
+    console.log('Downloading file from Appwrite');
     let fileBuffer: Buffer;
     let fileDownloadResult = storage.getFileDownload(BUCKETS.FILES, appwriteId);
-    // Type guard for Promise vs URL
     if (fileDownloadResult instanceof URL) {
-      console.log('Checkpoint: Appwrite SDK returned a URL instead of a stream');
+      console.log('Appwrite SDK returned a URL instead of a stream');
       return NextResponse.json({ error: "Appwrite SDK is returning a URL instead of a stream. Please use the Node.js SDK/server environment." }, { status: 500 });
     }
     if (!(fileDownloadResult && typeof (fileDownloadResult as any).then === 'function')) {
-      console.log('Checkpoint: Appwrite SDK did not return a Promise');
+      console.log('Appwrite SDK did not return a Promise');
       return NextResponse.json({ error: "Appwrite SDK did not return a Promise. Please check your SDK version and usage." }, { status: 500 });
     }
     try {
       fileBuffer = await getAppwriteFileBuffer(fileDownloadResult as Promise<any>);
-      console.log('Checkpoint: Downloaded file from Appwrite');
+      console.log('File downloaded from Appwrite');
     } catch (err) {
-      console.error("Appwrite file fetch error:", err);
+      console.error("Appwrite file fetch error");
       return NextResponse.json({ error: "Failed to fetch file from storage. Please try again later or contact support." }, { status: 500 });
     }
-    // Update download count (awaited)
+    // Update download count
     let shouldDeactivate = false;
     try {
       const newDownloadCount = (fileRecord.download_count || 0) + 1;
@@ -199,16 +199,13 @@ export async function GET(
         })
         .eq("id", fileRecord.id);
       if (updateError) {
-        console.error('Failed to update download count:', updateError);
+        console.error('Failed to update download count', updateError);
       } else {
-        console.log('Checkpoint: Download count incremented');
+        console.log('Download count incremented');
       }
-      // If should deactivate, delete from Appwrite and Supabase
       if (shouldDeactivate) {
         try {
-          // Delete from Appwrite storage
           await storage.deleteFile(BUCKETS.FILES, fileRecord.appwrite_id);
-          // Delete from Supabase
           const { error: deleteError } = await supabaseAdmin
             .from("zip_file_metadata")
             .delete()
@@ -216,8 +213,7 @@ export async function GET(
           if (deleteError) {
             console.error('Failed to delete zip_file_metadata row:', deleteError);
           } else {
-            console.log('Checkpoint: File and metadata deleted after expiry or max downloads');
-            // Audit log for deletion
+            console.log('File and metadata deleted after expiry or max downloads');
             let userId = 'human';
             if (newDownloadCount >= fileRecord.max_downloads) {
               userId = 'download_limit';
@@ -240,11 +236,11 @@ export async function GET(
             });
           }
         } catch (err) {
-          console.error('Error deleting file from Appwrite or Supabase:', err);
+          console.error('Error deleting file from Appwrite or Supabase', err);
         }
       }
     } catch (err) {
-      console.error('Exception while updating download count:', err);
+      console.error('Exception while updating download count', err);
     }
     // Log audit event (fire and forget)
     supabaseAdmin.from("audit_logs").insert({
@@ -258,8 +254,7 @@ export async function GET(
         downloadCount: (fileRecord.download_count || 0) + 1,
       },
     });
-    console.log('Checkpoint: Returning file as download');
-    // return NextResponse.json(fileBuffer);
+    console.log('Returning file as download');
     const response = new NextResponse(fileBuffer);
     response.headers.set("Content-type", "application/zip");
     response.headers.set("Content-Disposition", `attachment; filename="${fileRecord.original_name}"`);
@@ -268,7 +263,7 @@ export async function GET(
     // response.headers.set("Content-Disposition", 'attachment; filename="${fileRecord.original_name}"');
     return response;
   } catch (error) {
-    console.error("Download error:", error);
+    console.error("Download error", error);
     return NextResponse.json(
       { error: "Download failed. Please try again later or contact support." },
       { status: 500 }
@@ -276,12 +271,14 @@ export async function GET(
   }
 }
 
+// Handles POST requests for selective file/folder extraction from ZIP
 export async function POST(
   request: NextRequest,
   { params }: { params: { token: string } }
 ) {
+  console.log('POST /files/download/[token] - Start');
   if (!isProperlyConfigured()) {
-    console.log('Checkpoint: Service not properly configured');
+    console.log('Service not properly configured');
     return NextResponse.json(
       { error: "Service not properly configured" },
       { status: 503 }
@@ -294,25 +291,25 @@ export async function POST(
     const body = await request.json();
     const selectedPaths: string[] = Array.isArray(body.paths) ? body.paths : [];
     if (!selectedPaths.length) {
-      console.log('Checkpoint: No files/folders selected');
+      console.log('No files/folders selected');
       return NextResponse.json({ error: "No files/folders selected" }, { status: 400 });
     }
-    // Fetch file metadata from zip_file_metadata
+    // Fetch file metadata
+    console.log('Fetching file metadata');
     const { data: fileRecord, error: supabaseError } = await supabaseAdmin
       .from("zip_file_metadata")
       .select("*")
       .eq("download_token", token)
       .single();
-    console.log('Checkpoint: Fetched file metadata');
     if (supabaseError || !fileRecord) {
-      console.log('Checkpoint: File not found or expired');
+      console.log('File not found or expired');
       return NextResponse.json(
         { error: "File not found or expired" },
         { status: 404 }
       );
     }
     if (!fileRecord.is_active) {
-      console.log('Checkpoint: File has been deleted');
+      console.log('File has been deleted');
       return NextResponse.json(
         { error: "File has been deleted" },
         { status: 410 }
@@ -322,14 +319,14 @@ export async function POST(
       fileRecord.expiry_date &&
       new Date(fileRecord.expiry_date) < new Date()
     ) {
-      console.log('Checkpoint: File has expired');
+      console.log('File has expired');
       return NextResponse.json({ error: "File has expired" }, { status: 410 });
     }
     if (
       fileRecord.max_downloads &&
       fileRecord.download_count >= fileRecord.max_downloads
     ) {
-      console.log('Checkpoint: Download limit exceeded');
+      console.log('Download limit exceeded');
       return NextResponse.json(
         { error: "Download limit exceeded" },
         { status: 410 }
@@ -337,7 +334,7 @@ export async function POST(
     }
     if (fileRecord.password) {
       if (!password) {
-        console.log('Checkpoint: Password required but not provided');
+        console.log('Password required but not provided');
         return NextResponse.json(
           { error: "Password required", requiresPassword: true },
           { status: 401 }
@@ -345,45 +342,46 @@ export async function POST(
       }
       const isValidPassword = await verifyPassword(password, fileRecord.password);
       if (!isValidPassword) {
-        console.log('Checkpoint: Invalid password provided');
+        console.log('Invalid password provided');
         return NextResponse.json(
           { error: "Invalid password" },
           { status: 401 }
         );
       }
-      console.log('Checkpoint: Password validated');
+      console.log('Password validated');
     }
     const appwriteId = fileRecord.appwrite_id;
     if (!appwriteId) {
-      console.log('Checkpoint: File storage reference missing');
+      console.log('File storage reference missing');
       return NextResponse.json(
         { error: "File storage reference missing" },
         { status: 500 }
       );
     }
-    // Download the ZIP from Appwrite (ensure buffer)
+    // Download the ZIP from Appwrite
+    console.log('Downloading ZIP from Appwrite');
     let zipBuffer: Buffer;
     let zipDownloadResult = storage.getFileDownload(BUCKETS.FILES, appwriteId);
-    // Type guard for Promise vs URL
     if (zipDownloadResult instanceof URL) {
-      console.log('Checkpoint: Appwrite SDK returned a URL instead of a stream');
+      console.log('Appwrite SDK returned a URL instead of a stream');
       return NextResponse.json({ error: "Appwrite SDK is returning a URL instead of a stream. Please use the Node.js SDK/server environment." }, { status: 500 });
     }
     if (!(zipDownloadResult && typeof (zipDownloadResult as any).then === 'function')) {
-      console.log('Checkpoint: Appwrite SDK did not return a Promise');
+      console.log('Appwrite SDK did not return a Promise');
       return NextResponse.json({ error: "Appwrite SDK did not return a Promise. Please check your SDK version and usage." }, { status: 500 });
     }
     try {
       zipBuffer = await getAppwriteFileBuffer(zipDownloadResult as Promise<any>);
-      console.log('Checkpoint: Downloaded ZIP from Appwrite');
+      console.log('Downloaded ZIP from Appwrite');
     } catch (err) {
-      console.error("Appwrite file fetch error:", err);
+      console.error("Appwrite file fetch error", err);
       return NextResponse.json({ error: "Failed to fetch file from storage. Please try again later or contact support." }, { status: 500 });
     }
     // Extract only selected files/folders from the ZIP
     let newZipBuffer: Buffer;
     let newZipName: string;
     try {
+      console.log('Extracting selected files/folders from ZIP');
       const zip = new AdmZip(zipBuffer);
       const entries = zip.getEntries();
       const selectedEntries = entries.filter(entry =>
@@ -392,7 +390,7 @@ export async function POST(
         )
       );
       if (!selectedEntries.length) {
-        console.log('Checkpoint: No matching files/folders in archive');
+        console.log('No matching files/folders in archive');
         return NextResponse.json({ error: "No matching files/folders in archive" }, { status: 404 });
       }
       // Create a new ZIP with only selected entries
@@ -409,12 +407,12 @@ export async function POST(
         selectedEntries.length === 1 && !selectedEntries[0].isDirectory
           ? selectedEntries[0].name
           : `${fileRecord.original_name.replace(/\.zip$/, "")}_partial.zip`;
-      console.log('Checkpoint: Created new ZIP with selected files');
+      console.log('Created new ZIP with selected files');
     } catch (err) {
-      console.error("ZIP extraction error:", err);
+      console.error("ZIP extraction error", err);
       return NextResponse.json({ error: "Failed to extract selected files. Please try again later or contact support." }, { status: 500 });
     }
-    // Update download count (awaited)
+    // Update download count
     let shouldDeactivate = false;
     try {
       const newDownloadCount = (fileRecord.download_count || 0) + 1;
@@ -432,25 +430,21 @@ export async function POST(
         })
         .eq("id", fileRecord.id);
       if (updateError) {
-        console.error('Failed to update download count:', updateError);
+        console.error('Failed to update download count', updateError);
       } else {
-        console.log('Checkpoint: Download count incremented');
+        console.log('Download count incremented');
       }
-      // If should deactivate, delete from Appwrite and Supabase
       if (shouldDeactivate) {
         try {
-          // Delete from Appwrite storage
           await storage.deleteFile(BUCKETS.FILES, fileRecord.appwrite_id);
-          // Delete from Supabase
           const { error: deleteError } = await supabaseAdmin
             .from("zip_file_metadata")
             .delete()
             .eq("id", fileRecord.id);
           if (deleteError) {
-            console.error('Failed to delete zip_file_metadata row:', deleteError);
+            console.error('Failed to delete zip_file_metadata row', deleteError);
           } else {
-            console.log('Checkpoint: File and metadata deleted after expiry or max downloads');
-            // Audit log for deletion
+            console.log('File and metadata deleted after expiry or max downloads');
             let userId = 'human';
             if (newDownloadCount >= fileRecord.max_downloads) {
               userId = 'download_limit';
@@ -473,11 +467,11 @@ export async function POST(
             });
           }
         } catch (err) {
-          console.error('Error deleting file from Appwrite or Supabase:', err);
+          console.error('Error deleting file from Appwrite or Supabase', err);
         }
       }
     } catch (err) {
-      console.error('Exception while updating download count:', err);
+      console.error('Exception while updating download count', err);
     }
     // Log audit event (fire and forget)
     supabaseAdmin.from("audit_logs").insert({
@@ -492,8 +486,7 @@ export async function POST(
         selected: selectedPaths,
       },
     });
-    console.log('Checkpoint: Returning new ZIP as download');
-    // Return the new ZIP as a download
+    console.log('Returning new ZIP as download');
     const response = new NextResponse(newZipBuffer);
     response.headers.set("Content-Type", "application/zip");
     response.headers.set(
@@ -502,7 +495,7 @@ export async function POST(
     );
     return response;
   } catch (error) {
-    console.error("Selective download error:", error);
+    console.error("Selective download error", error);
     return NextResponse.json(
       { error: "Selective download failed. Please try again later or contact support." },
       { status: 500 }
