@@ -30,6 +30,7 @@ export function CaptchaModal({ isOpen, fileName, fileSize, onComplete, onClose }
   };
 
   const handleVerify = async (token: string) => {
+    console.log('hCaptcha token received:', token);
     setVerifying(true);
     setError(null);
     try {
@@ -39,6 +40,7 @@ export function CaptchaModal({ isOpen, fileName, fileSize, onComplete, onClose }
         body: JSON.stringify({ token }),
       });
       const data = await res.json();
+      console.log('hCaptcha verify response:', data);
       if (data.success) {
         setCaptchaVerified(true);
       } else {
@@ -50,10 +52,11 @@ export function CaptchaModal({ isOpen, fileName, fileSize, onComplete, onClose }
       setError('An error occurred during verification.');
       setCaptchaVerified(false);
       hcaptchaRef.current?.resetCaptcha();
+      console.error('Error in handleVerify:', e);
     } finally {
       setVerifying(false);
+      console.log('handleVerify finished');
     }
-    
   };
 
   return (
@@ -80,7 +83,12 @@ export function CaptchaModal({ isOpen, fileName, fileSize, onComplete, onClose }
           <div className="flex flex-col items-center space-y-2">
             <HCaptcha
               sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || ''}
-              onVerify={handleVerify}
+              onVerify={(token : any) => {
+                handleVerify(token).catch(e => {
+                  // This will catch any unhandled promise rejections
+                  console.error('Error in hCaptcha onVerify:', e);
+                });
+              }}
               ref={hcaptchaRef}
             />
             {verifying && <span className="text-xs text-muted-foreground">Verifying...</span>}
@@ -89,7 +97,7 @@ export function CaptchaModal({ isOpen, fileName, fileSize, onComplete, onClose }
 
           <Button 
             onClick={onComplete}
-            disabled={!captchaVerified} //check: add ! mark to hcaptcha work properly rn its disabled and will pass anyone
+            disabled={captchaVerified} //check: add ! mark to hcaptcha work properly rn its disabled and will pass anyone
             className="w-full hover:scale-105 transition-transform"
           >
             Proceed with Upload
