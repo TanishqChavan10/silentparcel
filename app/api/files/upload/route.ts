@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     //     { error: 'Too many upload attempts. Please try again later.' },
     //     { status: 429 }
     //   );
-    // }    // check: keeping it off for development perspective
+    // }    // check: keeping it off for development perspective, preventing multiple file uploads
 
     const formData = await request.formData();
     // Debug: log all formData keys and values
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     //   body: `secret=${process.env.HCAPTCHA_SECRET_KEY}&response=${captchaToken}`
     // });
 
-    // const captchaData = await captchaResponse.json();
+    // const captchaData = await captchaResponse.json() as { success: boolean; [key: string]: any };
     // if (!captchaData.success) {
     //   return NextResponse.json(
     //     { error: 'CAPTCHA verification failed' },

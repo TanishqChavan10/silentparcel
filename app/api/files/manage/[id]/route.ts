@@ -9,7 +9,9 @@ import { virusScanner } from '@/lib/virusScanner';
 
 export const runtime = 'nodejs';
 
+// Handles POST requests to update a zip archive: add, delete, or replace files in the archive
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  console.log('File manage route: Start POST handler');
   try {
     const { id } = params;
     const formData = await request.formData();
@@ -20,23 +22,28 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const filesToDelete = filesToDeleteRaw ? JSON.parse(filesToDeleteRaw) : [];
 
     if (!editToken) {
+      console.log('Missing edit token');
       return NextResponse.json({ error: 'Missing edit token' }, { status: 400 });
     }
 
     // Fetch the file record by download_token (or edit_token)
+    console.log('Fetching file record from database');
     const { data: fileRecord, error: fetchError } = await supabaseAdmin
       .from('zip_file_metadata')
       .select('*')
       .eq('download_token', id)
       .single();
     if (fetchError || !fileRecord) {
+      console.log('File not found');
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
     if (fileRecord.edit_token !== editToken) {
+      console.log('Invalid edit token');
       return NextResponse.json({ error: 'Invalid edit token' }, { status: 403 });
     }
 
     // Download the current zip from Appwrite
+    console.log('Downloading current zip from Appwrite');
     const oldAppwriteId = fileRecord.appwrite_id;
     const zipRes = await fetch(
       `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${BUCKETS.FILES}/files/${oldAppwriteId}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`,
@@ -48,14 +55,17 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
     );
     if (!zipRes.ok) {
+      console.log('Failed to fetch current zip from storage');
       return NextResponse.json({ error: 'Failed to fetch current zip from storage' }, { status: 500 });
     }
     const zipBuffer = Buffer.from(await zipRes.arrayBuffer());
     const zip = new AdmZip(zipBuffer);
 
     // Remove files marked for deletion
+    if (filesToDelete.length > 0) {
+      console.log('Removing files marked for deletion');
+    }
     for (const fileToken of filesToDelete) {
-      // Find the subfile metadata for this token
       const { data: subfile } = await supabaseAdmin
         .from('zip_subfile_metadata')
         .select('file_path')
@@ -72,8 +82,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       const file = files[i];
       const relPath = relPaths[i];
       const fileBuffer = Buffer.from(await file.arrayBuffer());
+      console.log(`Scanning file for viruses: ${file.name}`);
       const scanResult = await virusScanner.scanBuffer(fileBuffer);
       if (!scanResult.isClean) {
+        console.log(`File contains malicious content: ${file.name}`);
         return NextResponse.json({ error: `File contains malicious content: ${file.name}` }, { status: 400 });
       }
       zip.addFile(relPath, fileBuffer);
@@ -89,11 +101,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     // Prepare new zip buffer
+    console.log('Preparing new zip buffer');
     const newZipBuffer = zip.toBuffer();
     const zipName = `archive_${Date.now()}.zip`;
     const newAppwriteId = generateId();
 
     // Upload new zip to Appwrite
+    console.log('Uploading new zip to Appwrite');
     const form = new FormData();
     form.append('fileId', newAppwriteId);
     form.append('file', newZipBuffer, { filename: zipName, contentType: 'application/zip' });
@@ -108,10 +122,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     });
     if (!res.ok) {
       const errText = await res.text();
+      console.log('Appwrite upload failed');
       return NextResponse.json({ error: 'Appwrite upload failed', details: errText }, { status: 500 });
     }
 
     // Update zip_file_metadata with new file info
+    console.log('Updating file metadata in database');
     const updateFields = {
       appwrite_id: newAppwriteId,
       uploaded_at: new Date().toISOString(),
@@ -123,28 +139,29 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       .update(updateFields)
       .eq('id', fileRecord.id);
     if (updateError) {
+      console.log('Failed to update file metadata');
       return NextResponse.json({ error: 'Failed to update file metadata', details: updateError.message }, { status: 500 });
     }
 
     // Delete all old subfile metadata for this zip
+    console.log('Deleting old subfile metadata');
     await supabaseAdmin.from('zip_subfile_metadata').delete().eq('zip_id', fileRecord.id);
 
     // Insert new subfile metadata (for all files in the zip)
     // Re-scan the zip to get all files and their info
+    console.log('Inserting new subfile metadata');
     const zipEntries = zip.getEntries();
     const allSubfileRows = zipEntries
       .filter(entry => !entry.isDirectory)
       .map(entry => {
-        // Try to find a matching new subfile row (for new uploads)
         const newRow = subfileRows.find(row => row.file_path === entry.entryName);
         if (newRow) return newRow;
-        // Otherwise, reconstruct from the entry
         return {
           zip_id: fileRecord.id,
           file_name: entry.name,
           file_path: entry.entryName,
           size: entry.header.size,
-          mime_type: '', // You may want to store mime type elsewhere or infer it
+          mime_type: '',
           file_token: generateSecureId(),
           extracted: false
         };
@@ -152,11 +169,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (allSubfileRows.length > 0) {
       const { error: subfileInsertError } = await supabaseAdmin.from('zip_subfile_metadata').insert(allSubfileRows);
       if (subfileInsertError) {
+        console.log('Failed to update subfile metadata');
         return NextResponse.json({ error: 'Failed to update subfile metadata', details: subfileInsertError.message }, { status: 500 });
       }
     }
 
     // Delete the old zip from Appwrite
+    console.log('Deleting old zip from Appwrite');
     await fetch(
       `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${BUCKETS.FILES}/files/${oldAppwriteId}`,
       {
@@ -168,7 +187,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
     );
 
-    // --- Audit log for update ---
+    // Audit log for update
+    console.log('Writing audit log for file update');
     await supabaseAdmin.from('audit_logs').insert({
       action: 'file_update',
       resource_type: 'zip',
@@ -183,8 +203,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
     });
 
+    console.log('File update successful');
     return NextResponse.json({ success: true });
   } catch (err: any) {
+    console.log('Unexpected server error');
     return NextResponse.json({ error: 'Unexpected server error', details: err.message }, { status: 500 });
   }
 } 
