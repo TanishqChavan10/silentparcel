@@ -400,7 +400,7 @@ export default function FileDownloadPage() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => window.location.href = `/files/manage/${fileId}`}
+                  onClick={ ()=> window.open(`/files/manage/${fileId}`,  `_blank`)}
                   className="hover:scale-105 transition-transform"
                 >
                   {showEditToken ? 'Hide' : 'Manage File'}

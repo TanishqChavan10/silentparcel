@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { FileDropzone } from '@/components/file-dropzone';
 import Link from 'next/link';
 
 interface Subfile {
@@ -219,12 +220,9 @@ export default function ManageFilePage() {
   };
 
   // --- Add Files ---
-  const handleAddFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    const filesArray = Array.from(e.target.files ?? []);
-    const toAddTree = buildFileTree(filesArray, 'to-add');
+  const handleAddFiles = (files: File[]) => {
+    const toAddTree = buildFileTree(files, 'to-add');
     setFileTree(prev => mergeFileTrees(prev, toAddTree));
-    e.target.value = '';
   };
 
   // --- Handler functions for tree actions ---
@@ -579,64 +577,18 @@ export default function ManageFilePage() {
                       Archive Contents ({fileInfo.files?.length || 0} files)
                     </span>
                     <div className="flex items-center gap-2">
-                      <div
-                        onDrop={e => {
-                          e.preventDefault();
-                          const items = e.dataTransfer.items;
-                          if (items) {
-                            const files: File[] = [];
-                            let pending = items.length;
-                            for (let i = 0; i < items.length; i++) {
-                              let entry: FileSystemEntry | null = null;
-                              if (typeof items[i].webkitGetAsEntry === 'function') {
-                                entry = items[i].webkitGetAsEntry();
-                              }
-                              if (entry) {
-                                if (entry.isDirectory) {
-                                  // Recursively read directory (not supported in all browsers)
-                                  // For production, use a library like browser-fs-access or similar for full support
-                                  pending--;
-                                } else if (entry.isFile) {
-                                  // Get the File from the entry
-                                  (entry as FileSystemFileEntry).file((file: File) => {
-                                    files.push(file);
-                                    pending--;
-                                    if (pending === 0 && files.length > 0) {
-                                      const toAddTree = buildFileTree(files, 'to-add');
-                                      setFileTree(prev => mergeFileTrees(prev, toAddTree));
-                                    }
-                                  });
-                                  continue; // Wait for async file callback
-                                } else {
-                                  pending--;
-                                }
-                              } else {
-                                // Fallback: treat as File
-                                const file = typeof items[i].getAsFile === 'function' ? items[i].getAsFile() : null;
-                                if (file) files.push(file);
-                                pending--;
-                              }
-                            }
-                            // If all are sync (no async file callbacks), update immediately
-                            if (pending === 0 && files.length > 0) {
-                              const toAddTree = buildFileTree(files, 'to-add');
-                              setFileTree(prev => mergeFileTrees(prev, toAddTree));
-                            }
-                          }
-                        }}
-                        onDragOver={e => e.preventDefault()}
-                        className="border-2 border-dashed border-muted-foreground rounded-lg p-4 mb-4 text-center cursor-pointer bg-muted/10 hover:bg-muted/20"
-                        style={{ minHeight: 60 }}
-                        title="Drag and drop files or folders here"
-                      >
-                        Drag and drop files or folders here, or use the Add Files button below.
-                      </div>
+                      <FileDropzone onFileSelect={handleAddFiles} />
                       <input
                         type="file"
                         multiple
                         ref={fileInputRef}
                         accept="*"
-                        onChange={handleAddFiles}
+                        onChange={e => {
+                          if (e.target.files) {
+                            handleAddFiles(Array.from(e.target.files));
+                          }
+                          e.target.value = '';
+                        }}
                         disabled={updateLoading}
                         style={{ display: 'none' }}
                         id="add-files-input"
@@ -644,11 +596,11 @@ export default function ManageFilePage() {
                         webkitdirectory="true"
                         directory="true"
                       />
-                      <label htmlFor="add-files-input">
+                      {/* <label htmlFor="add-files-input">
                         <Button size="sm" className="hover:scale-105 transition-transform" asChild>
                           <span>Add Files or Folders</span>
                         </Button>
-                      </label>
+                      </label>   // integrated file-dropzone */}
                     </div>
                   </CardTitle>
                 </CardHeader>
