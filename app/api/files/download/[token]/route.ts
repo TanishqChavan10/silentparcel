@@ -226,7 +226,7 @@ export async function GET(
             }
             await supabaseAdmin.from("audit_logs").insert({
               action: "file_deleted",
-              resource_type: "file",
+              resource_type: "zip",
               resource_id: fileRecord.id,
               user_id: userId,
               ip_address: getClientIP(request),
@@ -249,7 +249,7 @@ export async function GET(
     // Log audit event (fire and forget)
     supabaseAdmin.from("audit_logs").insert({
       action: "file_download",
-      resource_type: "file",
+      resource_type: "zip",
       resource_id: fileRecord.id,
       ip_address: getClientIP(request),
       user_agent: request.headers.get("user-agent"),
@@ -459,7 +459,7 @@ export async function POST(
             }
             await supabaseAdmin.from("audit_logs").insert({
               action: "file_deleted",
-              resource_type: "file",
+              resource_type: "zip",
               resource_id: fileRecord.id,
               user_id: userId,
               ip_address: getClientIP(request),
@@ -482,7 +482,7 @@ export async function POST(
     // Log audit event (fire and forget)
     supabaseAdmin.from("audit_logs").insert({
       action: "file_download_partial",
-      resource_type: "file",
+      resource_type: "zip",
       resource_id: fileRecord.id,
       ip_address: getClientIP(request),
       user_agent: request.headers.get("user-agent"),

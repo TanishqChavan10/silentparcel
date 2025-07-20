@@ -168,6 +168,21 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
     );
 
+    // --- Audit log for update ---
+    await supabaseAdmin.from('audit_logs').insert({
+      action: 'file_update',
+      resource_type: 'zip',
+      resource_id: fileRecord.id,
+      ip_address: getClientIP(request),
+      user_agent: request.headers.get('user-agent'),
+      metadata: {
+        added: subfileRows.map(f => f.file_path),
+        deleted: filesToDelete,
+        new_zip_name: zipName,
+        new_appwrite_id: newAppwriteId
+      }
+    });
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: 'Unexpected server error', details: err.message }, { status: 500 });
