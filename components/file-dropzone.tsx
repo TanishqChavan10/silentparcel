@@ -14,37 +14,102 @@ export function FileDropzone({ onFileSelect }: FileDropzoneProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
+  // Recursively traverse directories using webkitGetAsEntry
+  const traverseFileTree = useCallback((item: any, path = '', collected: File[] = [], done: () => void) => {
+    if (item.isFile) {
+      item.file((file: File) => {
+        // Attach the relative path for backend
+        Object.defineProperty(file, 'webkitRelativePath', {
+          value: path + item.name,
+          writable: false,
+        });
+        collected.push(file);
+        done();
+      });
+    } else if (item.isDirectory) {
+      const dirReader = item.createReader();
+      dirReader.readEntries((entries: any[]) => {
+        let remaining = entries.length;
+        if (!remaining) done();
+        for (const entry of entries) {
+          traverseFileTree(entry, path + item.name + '/', collected, () => {
+            remaining--;
+            if (remaining === 0) done();
+          });
+        }
+      });
+    } else {
+      done();
+    }
+  }, []);
+
+  // Handle drag over
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
   }, []);
 
+  // Handle drag leave
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
   }, []);
 
+  // Handle drop (files and folders)
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length > 0) {
-      onFileSelect(files);
-    }
-  }, [onFileSelect]);
 
+    const items = e.dataTransfer.items;
+    if (items && items.length > 0 && typeof items[0].webkitGetAsEntry === 'function') {
+      // Folder or mixed drop
+      const files: File[] = [];
+      let pending = 0;
+      let finished = false;
+
+      const maybeFinish = () => {
+        if (!finished && pending === 0) {
+          finished = true;
+          onFileSelect(files);
+        }
+      };
+
+      for (let i = 0; i < items.length; i++) {
+        const entry = items[i].webkitGetAsEntry();
+        if (entry) {
+          pending++;
+          traverseFileTree(entry, '', files, () => {
+            pending--;
+            maybeFinish();
+          });
+        }
+      }
+      // In case nothing is pending (empty drop)
+      maybeFinish();
+    } else {
+      // Fallback: just use files (no folder structure)
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length > 0) {
+        onFileSelect(files);
+      }
+    }
+  }, [onFileSelect, traverseFileTree]);
+
+  // Handle file/folder input (manual selection)
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       onFileSelect(Array.from(files));
     }
+    // Reset input so the same file/folder can be selected again
+    e.target.value = '';
   }, [onFileSelect]);
 
   return (
     <Card className={`
       p-12 border-2 border-dashed transition-all duration-300 cursor-pointer bg-card/50
-      ${isDragging 
-        ? 'border-primary bg-primary/5 scale-105' 
+      ${isDragging
+        ? 'border-primary bg-primary/5 scale-105'
         : 'border-border/50 hover:border-primary/50 hover:bg-accent/50'
       }
     `}>
@@ -60,18 +125,18 @@ export function FileDropzone({ onFileSelect }: FileDropzoneProps) {
         `}>
           <Upload className="h-8 w-8" />
         </div>
-        
+
         <div>
           <h3 className="text-lg font-semibold mb-2">
-            {isDragging 
-              ? 'Drop your files or folder here'
-              : 'Drag & drop your files or folder'}
+            {isDragging
+              ? 'Drop your files or folders here'
+              : 'Drag & drop your files or folders'}
           </h3>
           <p className="text-muted-foreground mb-4">
             or choose a file or folder (max 50000KB per file)
           </p>
         </div>
-        
+
         <div className="flex gap-2 justify-center">
           {/* Single file input */}
           <input
