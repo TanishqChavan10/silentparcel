@@ -1,3 +1,4 @@
+// If you want to create Database Tables and Schemas use this script, bit old update it using the sql file given in code
 const { Client, Databases, Storage, ID } = require('appwrite');
 
 // Initialize Appwrite client

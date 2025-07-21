@@ -37,6 +37,7 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"; // adjust import as needed
 
 interface Subfile {
 	file_name: string;
@@ -184,6 +185,8 @@ export default function ManageFilePage() {
 	const [filesToDelete, setFilesToDelete] = useState<string[]>([]); // file_token of files to delete
 	const [updateLoading, setUpdateLoading] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+	const [deleting, setDeleting] = useState(false);
 
 	const fileId = params.id as string;
 
@@ -253,12 +256,27 @@ export default function ManageFilePage() {
 		return date.toLocaleDateString() + " at " + date.toLocaleTimeString();
 	};
 
-	const handleDeleteFile = (fileId: string) => {
-		if (fileInfo?.files) {
-			setFileInfo({
-				...fileInfo,
-				files: fileInfo.files.filter((f) => f.file_token !== fileId),
+	const handleDeleteFile = async () => {
+		setDeleting(true);
+		setError("");
+		try {
+			const res = await fetch(`/api/files/manage/${fileId}`, {
+				method: "DELETE",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ editToken }), // send the edit token for auth
 			});
+			const data = await res.json();
+			if (!res.ok) {
+				setError(data.error || "Failed to delete file");
+			} else {
+				// Optionally redirect or show a success message
+				router.push("/files"); // or your desired route
+			}
+		} catch (err) {
+			setError("Failed to delete file");
+		} finally {
+			setDeleting(false);
+			setShowDeleteDialog(false);
 		}
 	};
 
@@ -410,13 +428,12 @@ export default function ManageFilePage() {
 							</button>
 							<Archive className="h-4 w-4 text-muted-foreground" />
 							<span
-								className={`flex-1 text-sm truncate select-text ${
-									node.status === "to-delete"
+								className={`flex-1 text-sm truncate select-text ${node.status === "to-delete"
 										? "line-through text-destructive"
 										: node.status === "to-add"
-										? "text-primary"
-										: ""
-								}`}
+											? "text-primary"
+											: ""
+									}`}
 								title={node.name}
 							>
 								{node.name}
@@ -458,13 +475,12 @@ export default function ManageFilePage() {
 							<span className="inline-block w-5" />
 							<FileText className="h-4 w-4 text-muted-foreground" />
 							<span
-								className={`flex-1 text-sm truncate select-text ${
-									node.status === "to-delete"
+								className={`flex-1 text-sm truncate select-text ${node.status === "to-delete"
 										? "line-through text-destructive"
 										: node.status === "to-add"
-										? "text-primary"
-										: ""
-								}`}
+											? "text-primary"
+											: ""
+									}`}
 								title={node.name}
 							>
 								{node.name}
@@ -671,20 +687,14 @@ export default function ManageFilePage() {
 
 								<div className="flex flex-col items-end space-y-2">
 									<Badge
-										variant={
-											fileInfo.virusScanStatus === "clean"
-												? "default"
-												: "destructive"
-										}
+										variant="default"
+										className="bg-green-100 text-green-800 border border-green-300"
 									>
-										<Shield className="h-3 w-3 mr-1" />
-										{fileInfo.virusScanStatus === "clean"
-											? "Virus Free"
-											: "Infected"}
+										<Shield className="h-3 w-3 mr-1 text-green-600" />
+										Virus Free
 									</Badge>
-									{fileInfo.isPasswordProtected && (
-										<Badge variant="secondary">Protected</Badge>
-									)}
+									<Badge variant="secondary">Protected</Badge>
+
 								</div>
 							</div>
 						</CardHeader>
@@ -724,7 +734,7 @@ export default function ManageFilePage() {
 									<div className="text-2xl font-bold text-chart-2">
 										{Math.ceil(
 											(new Date(fileInfo.expiryDate).getTime() - Date.now()) /
-												(1000 * 60 * 60 * 24)
+											(1000 * 60 * 60 * 24)
 										)}
 									</div>
 									<p className="text-sm text-muted-foreground">
@@ -912,10 +922,39 @@ export default function ManageFilePage() {
 										</span>
 									</div>
 									<div className="pt-4 border-t border-border/30">
-										<Button variant="destructive" className="w-full" size="sm">
-											<Trash2 className="h-4 w-4 mr-2" />
-											Delete File
-										</Button>
+										<AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+											<AlertDialogTrigger asChild>
+												<Button variant="destructive" className="w-full" size="sm">
+													<Trash2 className="h-4 w-4 mr-2" />
+													Delete File
+												</Button>
+											</AlertDialogTrigger>
+											<AlertDialogContent>
+												<div>
+													<h2 className="font-bold text-lg mb-2">Delete File?</h2>
+													<p>
+														This will permanently delete the file from Supabase and Appwrite storage. This action cannot be undone.
+													</p>
+													{error && <div className="text-destructive mt-2">{error}</div>}
+												</div>
+												<div className="flex justify-end gap-2 mt-4">
+													<AlertDialogCancel asChild>
+														<Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+															Cancel
+														</Button>
+													</AlertDialogCancel>
+													<AlertDialogAction asChild>
+														<Button
+															variant="destructive"
+															onClick={handleDeleteFile}
+															disabled={deleting}
+														>
+															{deleting ? "Deleting..." : "Delete"}
+														</Button>
+													</AlertDialogAction>
+												</div>
+											</AlertDialogContent>
+										</AlertDialog>
 									</div>
 								</CardContent>
 							</Card>

@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     const password = formData.get('password') as string;
     const expiresIn = formData.get('expiresIn') as string;
     const maxDownloadsRaw = formData.get('maxDownloads');
-    let maxDownloads = 20;
+    let maxDownloads = 10;   // default downloads would be 10
     if (maxDownloadsRaw !== null && maxDownloadsRaw !== undefined) {
       const parsed = parseInt(String(maxDownloadsRaw), 10);
       if (!isNaN(parsed) && parsed >= 1 && parsed <= 20) {

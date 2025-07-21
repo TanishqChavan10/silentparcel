@@ -1,11 +1,5 @@
 api setup complete --> all done 
-captcha not working  --> captcha working (kept on hold due to development)
-file not uploading --> multiple file selection, upload remaining --> upload success, fetch remaining --> fetch success, download error on device --> download success, opening error --> files and folder can be uploaded at once --> can download zip, or individual files but cant open it --> fixed timezone to india in sql && whole zip 200 && partial zip 500  --> fixed timezone for all tables queries && zip download 200 && partial download 200 
+captcha not working  --> captcha working (kept on hold due to development) --> removing while uploading, thinking to keep in chatroom feat
+file not uploading --> multiple file selection, upload remaining --> upload success, fetch remaining --> fetch success, download error on device --> download success, opening error --> files and folder can be uploaded at once --> can download zip, or individual files but cant open it --> fixed timezone to india in sql && whole zip 200 && partial zip 500  --> fixed timezone for all tables queries && zip download 200 && partial download 200 --> UI updated by tkshinde --> delete func && cleanup action setup remaining && logs of user in manage page
 chat not chatting
 
-The manage logic would be like I would access the token from the database the zip folder and I 
-will extract it entirely after extracting it on the client side the user will be having the 
-options like whether you want to add something or you want to just like delete something so it
- will add or delete the files after confirming it it will give news if file and upload it to the
-  same id same token the only thing which will be different would be the zip file and the update
-   timing
