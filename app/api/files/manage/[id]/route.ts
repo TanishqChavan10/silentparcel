@@ -209,4 +209,69 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     console.log('Unexpected server error');
     return NextResponse.json({ error: 'Unexpected server error', details: err.message }, { status: 500 });
   }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params;
+    const body = await request.json();
+    const editToken = body.editToken;
+
+    if (!editToken) {
+      return NextResponse.json({ error: 'Missing edit token' }, { status: 400 });
+    }
+
+    // Fetch file record by download_token
+    const { data: fileRecord, error: fetchError } = await supabaseAdmin
+      .from('zip_file_metadata')
+      .select('*')
+      .eq('download_token', id)
+      .single();
+    if (fetchError || !fileRecord) {
+      return NextResponse.json({ error: 'File not found' }, { status: 404 });
+    }
+    if (fileRecord.edit_token !== editToken) {
+      return NextResponse.json({ error: 'Invalid edit token' }, { status: 403 });
+    }
+
+    // Delete from Appwrite
+    try {
+      await fetch(
+        `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${BUCKETS.FILES}/files/${fileRecord.appwrite_id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'X-Appwrite-Project': process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID ?? '',
+            'X-Appwrite-Key': process.env.APPWRITE_API_KEY ?? '',
+          },
+        }
+      );
+    } catch (err) {
+      // Log but continue to delete metadata
+      console.error('Failed to delete file from Appwrite:', err);
+    }
+
+    // Delete from Supabase
+    const { error: supabaseDeleteError } = await supabaseAdmin.from('zip_file_metadata').delete().eq('id', fileRecord.id);
+    if (supabaseDeleteError) {
+      return NextResponse.json({ error: 'Failed to delete file metadata', details: supabaseDeleteError.message }, { status: 500 });
+    }
+
+    // Audit log
+    await supabaseAdmin.from('audit_logs').insert({
+      action: 'file_deleted',
+      resource_type: 'zip',
+      resource_id: fileRecord.id,
+      ip_address: getClientIP(request),
+      user_agent: request.headers.get('user-agent'),
+      metadata: {
+        filename: fileRecord.original_name,
+        reason: 'user_deleted',
+      }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Unexpected server error', details: err.message }, { status: 500 });
+  }
 } 
