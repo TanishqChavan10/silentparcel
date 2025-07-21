@@ -45,7 +45,7 @@ export default function ChatRoomPage() {
   if (!roomExists) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="border-b border-border/40 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
+        <header className="border-b border-border/40 backdrop-blur-xs bg-background/80 sticky top-0 z-50">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <Link href="/rooms">
               <Button variant="ghost" size="sm" className="hover:bg-accent/50">
@@ -84,7 +84,7 @@ export default function ChatRoomPage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="border-b border-border/40 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
+        <header className="border-b border-border/40 backdrop-blur-xs bg-background/80 sticky top-0 z-50">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <Link href="/rooms">
               <Button variant="ghost" size="sm" className="hover:bg-accent/50">

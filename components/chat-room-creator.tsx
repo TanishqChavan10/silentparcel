@@ -94,7 +94,7 @@ export function ChatRoomCreator({ onComplete, onBack }: ChatRoomCreatorProps) {
                   <SelectTrigger className="bg-background/50">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-background/95 backdrop-blur-sm border-border/50">
+                  <SelectContent className="bg-background/95 backdrop-blur-xs border-border/50">
                     <SelectItem value="30m">30 Minutes</SelectItem>
                     <SelectItem value="1h">1 Hour</SelectItem>
                     <SelectItem value="2h">2 Hours</SelectItem>

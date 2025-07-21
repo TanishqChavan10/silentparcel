@@ -12,10 +12,10 @@ import AdmZip from 'adm-zip';
 
 export async function POST(request: NextRequest) {
   // Check environment configuration
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || 
-      process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co' ||
-      !process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ||
-      process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT === 'https://placeholder.appwrite.io/v1') {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co' ||
+    !process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ||
+    process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT === 'https://placeholder.appwrite.io/v1') {
     return NextResponse.json(
       { error: 'Service not properly configured' },
       { status: 503 }
@@ -98,8 +98,8 @@ export async function POST(request: NextRequest) {
     // }
 
     // Validate file
-        // Validate file type and size
-        const allowedTypes = getAllowedTypes();
+    // Validate file type and size
+    const allowedTypes = getAllowedTypes();
     const maxSize = parseInt(process.env.MAX_FILE_SIZE || '104857600');
     let totalSize = 0;
     const subfileMetadata: any[] = [];

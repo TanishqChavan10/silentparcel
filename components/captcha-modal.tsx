@@ -61,7 +61,7 @@ export function CaptchaModal({ isOpen, fileName, fileSize, onComplete, onClose }
 
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-md bg-background/95 backdrop-blur-sm border-border/50">
+      <DialogContent className="max-w-md bg-background/95 backdrop-blur-xs border-border/50">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <Shield className="h-5 w-5 mr-2" />
