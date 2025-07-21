@@ -9,17 +9,17 @@ export const metadata: Metadata = {
 	description:
 		"Share files securely and chat anonymously with ephemeral rooms. No registration required.",
 };
-const GeneralSans = localFont({
-	src: [
-		{ path: "fonts/GeneralSans/GeneralSans-Variable.woff2", style: "normal" },
-		{
-			path: "fonts/GeneralSans/GeneralSans-VariableItalic.woff2",
-			style: "italic",
-		},
-	],
-	display: "swap",
-	preload: true,
-});
+// const GeneralSans = localFont({
+// 	src: [
+// 		{ path: "fonts/GeneralSans/GeneralSans-Variable.woff2", style: "normal" },
+// 		{
+// 			path: "fonts/GeneralSans/GeneralSans-VariableItalic.woff2",
+// 			style: "italic",
+// 		},
+// 	],
+// 	display: "swap",
+// 	preload: true,
+// });
 
 export default function RootLayout({
 	children,
@@ -28,7 +28,9 @@ export default function RootLayout({
 }) {
 	return (
 		<html lang="en" suppressHydrationWarning>
-			<body className={`${GeneralSans.className}`}>
+			<body 
+			// className={`${GeneralSans.className}`}
+			>
 				<ThemeProvider
 					attribute="class"
 					defaultTheme="system"

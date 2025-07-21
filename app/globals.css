@@ -4,7 +4,10 @@
 @custom-variant dark (&: is(.dark *));
 
 @theme inline {
-	--font-sans: "General Sans", sans-serif;
+	/* --font-sans: "General Sans", sans-serif; */
+	--font-sans: "InterVar", serif;
+	--font-sans--font-feature-settings: "cv03" 1, "cv04" 1, "cv09" 1, "cv08" 1,
+		"zero" 1, "liga" 1, "calt" 1, "cv06" 1, "cv10" 1, "cv11" 1;
 	--font-mono: "JetBrains Mono", monospace;
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);

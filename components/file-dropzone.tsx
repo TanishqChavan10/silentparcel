@@ -106,72 +106,84 @@ export function FileDropzone({ onFileSelect }: FileDropzoneProps) {
   }, [onFileSelect]);
 
   return (
-    <Card className={`
-      p-12 border-2 border-dashed transition-all duration-300 cursor-pointer bg-card/50
+    <Card
+      className={`
+      p-10 border-2 border-dashed transition-all duration-300 cursor-pointer rounded-2xl shadow-sm bg-card/30
       ${isDragging
-        ? 'border-primary bg-primary/5 scale-105'
-        : 'border-border/50 hover:border-primary/50 hover:bg-accent/50'
+        ? 'border-primary bg-primary/10 scale-[1.03]'
+        : 'border-border/40 hover:border-primary/40 hover:bg-accent/30'
       }
-    `}>
+      `}
+    >
       <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className="text-center space-y-4"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className="flex flex-col items-center justify-center gap-6 min-h-[260px]"
       >
-        <div className={`
-          w-16 h-16 mx-auto rounded-full flex items-center justify-center transition-all duration-300
-          ${isDragging ? 'bg-primary text-primary-foreground scale-110' : 'bg-muted'}
-        `}>
-          <Upload className="h-8 w-8" />
-        </div>
+      <div
+        className={`
+        w-14 h-14 flex items-center justify-center rounded-xl transition-all duration-300
+        ${isDragging ? 'bg-primary text-primary-foreground scale-110 shadow-lg' : 'bg-muted/60 text-muted-foreground'}
+        `}
+      >
+        <Upload className="h-7 w-7" />
+      </div>
 
-        <div>
-          <h3 className="text-lg font-semibold mb-2">
-            {isDragging
-              ? 'Drop your files or folders here'
-              : 'Drag & drop your files or folders'}
-          </h3>
-          <p className="text-muted-foreground mb-4">
-            or choose a file or folder (max 50000KB per file)
-          </p>
-        </div>
+      <div className="text-center">
+        <h3 className="text-xl font-semibold mb-1 tracking-tight">
+        {isDragging
+          ? 'Drop files or folders'
+          : 'Drag & drop files or folders'}
+        </h3>
+        <p className="text-sm text-muted-foreground mb-0.5">
+        or select below (max 50MB per file)
+        </p>
+      </div>
 
-        <div className="flex gap-2 justify-center">
-          {/* Single file input */}
-          <input
-            type="file"
-            className="hidden"
-            id="file-input"
-            accept="*/*"
-            ref={fileInputRef}
-            onChange={handleFileInput}
-          />
-          <Button asChild variant="outline" className="hover:scale-105 transition-transform">
-            <label htmlFor="file-input" className="cursor-pointer flex items-center">
-              <FileText className="h-4 w-4 mr-2" />
-              Choose File
-            </label>
-          </Button>
+      <div className="flex gap-3">
+        {/* Single file input */}
+        <input
+        type="file"
+        className="hidden"
+        id="file-input"
+        accept="*/*"
+        ref={fileInputRef}
+        onChange={handleFileInput}
+        />
+        <Button
+        asChild
+        variant="ghost"
+        className="px-4 py-2 rounded-lg border border-border/60 hover:border-primary/40 hover:bg-primary/5 transition-all text-base font-medium"
+        >
+        <label htmlFor="file-input" className="cursor-pointer flex items-center gap-2">
+          <FileText className="h-4 w-4" />
+          File
+        </label>
+        </Button>
 
-          {/* Folder input */}
-          <input
-            type="file"
-            className="hidden"
-            id="folder-input"
-            // @ts-ignore
-            webkitdirectory="true"
-            multiple
-            ref={folderInputRef}
-            onChange={handleFileInput}
-          />
-          <Button asChild variant="outline" className="hover:scale-105 transition-transform">
-            <label htmlFor="folder-input" className="cursor-pointer flex items-center">
-              <FolderOpen className="h-4 w-4 mr-2" />
-              Choose Folder
-            </label>
-          </Button>
-        </div>
+        {/* Folder input */}
+        <input
+        type="file"
+        className="hidden"
+        id="folder-input"
+        // @ts-ignore
+        webkitdirectory="true"
+        multiple
+        ref={folderInputRef}
+        onChange={handleFileInput}
+        />
+        <Button
+        asChild
+        variant="ghost"
+        className="px-4 py-2 rounded-lg border border-border/60 hover:border-primary/40 hover:bg-primary/5 transition-all text-base font-medium"
+        >
+        <label htmlFor="folder-input" className="cursor-pointer flex items-center gap-2">
+          <FolderOpen className="h-4 w-4" />
+          Folder
+        </label>
+        </Button>
+      </div>
       </div>
     </Card>
   );

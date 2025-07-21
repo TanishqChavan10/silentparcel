@@ -1,370 +1,701 @@
-'use client';
+"use client";
 
-import { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { ArrowLeft, Upload, FileText, Lock, Shield, Check, AlertTriangle, Eye, X, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { ThemeToggle } from '@/components/theme-toggle';
-import Link from 'next/link';
-import { FileDropzone } from '@/components/file-dropzone';
-import { CaptchaModal } from '@/components/captcha-modal';
-import { LinkResultModal } from '@/components/link-result-modal';
-import { storage, BUCKETS } from '@/lib/appwrite';
-import { ID } from 'appwrite';
-import { Readable } from 'stream';
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import {
+	ArrowLeft,
+	Upload,
+	FileText,
+	Lock,
+	Shield,
+	Check,
+	AlertTriangle,
+	Eye,
+	X,
+	Loader2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from "@/components/theme-toggle";
+import Link from "next/link";
+import { FileDropzone } from "@/components/file-dropzone";
+import { CaptchaModal } from "@/components/captcha-modal";
+import { LinkResultModal } from "@/components/link-result-modal";
+import { storage, BUCKETS } from "@/lib/appwrite";
+import { ID } from "appwrite";
+import { Readable } from "stream";
+import { AnimatePresence, motion } from "motion/react";
+import { Slider } from "@/components/ui/slider";
 
-type UploadStage = 'select' | 'captcha' | 'uploading' | 'complete' | 'virus-error';
+type UploadStage =
+	| "select"
+	| "captcha"
+	| "uploading"
+	| "complete"
+	| "virus-error";
 
 interface FileData {
-  name: string;
-  size: number;
-  type: string;
-  file: File;
+	name: string;
+	size: number;
+	type: string;
+	file: File;
 }
 
 export default function FilesPage() {
-  const router = useRouter();
-  const [stage, setStage] = useState<UploadStage>('select');
-  const [selectedFiles, setSelectedFiles] = useState<FileData[]>([]);
-  const [uploadProgress, setUploadProgress] = useState<number[]>([]);
-  const [virusScanStatus, setVirusScanStatus] = useState<(null | 'scanning' | 'clean' | 'infected')[]>([]);
-  const [passwordProtected, setPasswordProtected] = useState(false);
-  const [password, setPassword] = useState('');
-  const [downloadLinks, setDownloadLinks] = useState<string[]>([]);
-  const [editTokens, setEditTokens] = useState<string[]>([]);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [maxDownloadsEnabled, setMaxDownloadsEnabled] = useState(false);
-  const [maxDownloads, setMaxDownloads] = useState(20);
+	const router = useRouter();
+	const [stage, setStage] = useState<UploadStage>("select");
+	const [selectedFiles, setSelectedFiles] = useState<FileData[]>([]);
+	const [uploadProgress, setUploadProgress] = useState<number[]>([]);
+	const [virusScanStatus, setVirusScanStatus] = useState<
+		(null | "scanning" | "clean" | "infected")[]
+	>([]);
+	const [passwordProtected, setPasswordProtected] = useState(false);
+	const [password, setPassword] = useState("");
+	const [downloadLinks, setDownloadLinks] = useState<string[]>([]);
+	const [editTokens, setEditTokens] = useState<string[]>([]);
+	const [uploadError, setUploadError] = useState<string | null>(null);
+	const [maxDownloadsEnabled, setMaxDownloadsEnabled] =
+		useState<boolean>(false);
+	const [maxDownloads, setMaxDownloads] = useState<[number]>([10]);
+	const [showPassword, setShowPassword] = useState<boolean>(false);
 
-  const handleFileSelect = useCallback((files: File[]) => {
-    setSelectedFiles(prev => {
-      // Map new files to FileData
-      const newFileDataArr = files.map(file => ({
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        file
-      }));
-      // Merge, filter out duplicates (by name, size, and relative path if available)
-      const allFiles = [...prev, ...newFileDataArr];
-      const uniqueFiles = allFiles.filter(
-        (file, idx, arr) =>
-          arr.findIndex(
-            f =>
-              f.name === file.name &&
-              f.size === file.size &&
-              ((f.file as any).webkitRelativePath || f.name) === ((file.file as any).webkitRelativePath || file.name)
-          ) === idx
-      );
-      return uniqueFiles;
-    });
-    // Don't reset progress/status here; let them be managed by upload logic
-  }, []);
+	const handleFileSelect = useCallback((files: File[]) => {
+		setSelectedFiles((prev) => {
+			// Map new files to FileData
+			const newFileDataArr = files.map((file) => ({
+				name: file.name,
+				size: file.size,
+				type: file.type,
+				file,
+			}));
+			// Merge, filter out duplicates (by name, size, and relative path if available)
+			const allFiles = [...prev, ...newFileDataArr];
+			const uniqueFiles = allFiles.filter(
+				(file, idx, arr) =>
+					arr.findIndex(
+						(f) =>
+							f.name === file.name &&
+							f.size === file.size &&
+							((f.file as any).webkitRelativePath || f.name) ===
+								((file.file as any).webkitRelativePath || file.name)
+					) === idx
+			);
+			return uniqueFiles;
+		});
+		// Don't reset progress/status here; let them be managed by upload logic
+	}, []);
 
-  const uploadFilesToServer = async () => {
-    setVirusScanStatus(selectedFiles.map(() => 'scanning'));
-    setUploadProgress(selectedFiles.map(() => 0));
-    setUploadError(null);
+	const uploadFilesToServer = async () => {
+		setVirusScanStatus(selectedFiles.map(() => "scanning"));
+		setUploadProgress(selectedFiles.map(() => 0));
+		setUploadError(null);
 
-    // Prepare FormData for all files at once
-    const formData = new FormData();
-    selectedFiles.forEach((fileData) => {
-      formData.append('files', fileData.file);
-      // Use webkitRelativePath if available, else fallback to file name
-      formData.append(
-        'relativePaths',
-        (fileData.file as any).webkitRelativePath || fileData.name
-      );
-    });
-    if (passwordProtected && password) {
-      formData.append('password', password);
-    }
-    // Add maxDownloads to formData
-    formData.append('maxDownloads', String(maxDownloadsEnabled ? maxDownloads : 20));
+		// Prepare FormData for all files at once
+		const formData = new FormData();
+		selectedFiles.forEach((fileData) => {
+			formData.append("files", fileData.file);
+			// Use webkitRelativePath if available, else fallback to file name
+			formData.append(
+				"relativePaths",
+				(fileData.file as any).webkitRelativePath || fileData.name
+			);
+		});
+		if (passwordProtected && password) {
+			formData.append("password", password);
+		}
+		// Add maxDownloads to formData
+		formData.append(
+			"maxDownloads",
+			String(maxDownloadsEnabled ? maxDownloads : 20)
+		);
 
-    try {
-      const res = await fetch('/api/files/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await res.json();
-      if (res.ok && data.downloadUrl && data.editUrl) {
-        setVirusScanStatus(selectedFiles.map(() => 'clean'));
-        setDownloadLinks([data.downloadUrl]);
-        setEditTokens([data.editUrl.split('/').pop()]);
-        setUploadProgress(selectedFiles.map(() => 100));
-        setTimeout(() => setStage('complete'), 500);
-      } else {
-        setVirusScanStatus(selectedFiles.map(() => 'infected'));
-        setUploadError(data.error || 'File contains a virus and cannot be shared.');
-        setStage('virus-error');
-      }
-    } catch (err) {
-      setVirusScanStatus(selectedFiles.map(() => 'infected'));
-      setUploadError('File contains a virus and cannot be shared.');
-      setStage('virus-error');
-    }
-  };
+		try {
+			const res = await fetch("/api/files/upload", {
+				method: "POST",
+				body: formData,
+			});
+			const data = await res.json();
+			if (res.ok && data.downloadUrl && data.editUrl) {
+				setVirusScanStatus(selectedFiles.map(() => "clean"));
+				setDownloadLinks([data.downloadUrl]);
+				setEditTokens([data.editUrl.split("/").pop()]);
+				setUploadProgress(selectedFiles.map(() => 100));
+				setTimeout(() => setStage("complete"), 500);
+			} else {
+				setVirusScanStatus(selectedFiles.map(() => "infected"));
+				setUploadError(
+					data.error || "File contains a virus and cannot be shared."
+				);
+				setStage("virus-error");
+			}
+		} catch (err) {
+			setVirusScanStatus(selectedFiles.map(() => "infected"));
+			setUploadError("File contains a virus and cannot be shared.");
+			setStage("virus-error");
+		}
+	};
 
-  const handleCaptchaComplete = () => {
-    setStage('uploading');
-    uploadFilesToServer();
-  };
+	const handleCaptchaComplete = () => {
+		setStage("uploading");
+		uploadFilesToServer();
+	};
 
-  const handleBackToSelect = () => {
-    setStage('select');
-    setSelectedFiles([]);
-    setUploadProgress([]);
-    setVirusScanStatus([]);
-    setDownloadLinks([]);
-    setEditTokens([]);
-    setUploadError(null);
-    setPassword('');
-  };
+	const handleBackToSelect = () => {
+		setStage("select");
+		setSelectedFiles([]);
+		setUploadProgress([]);
+		setVirusScanStatus([]);
+		setDownloadLinks([]);
+		setEditTokens([]);
+		setUploadError(null);
+		setPassword("");
+	};
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+	const formatFileSize = (bytes: number) => {
+		if (bytes === 0) return "0 Bytes";
+		const k = 1024;
+		const sizes = ["Bytes", "KB", "MB", "GB"];
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+	};
 
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border/40 backdrop-blur-xs bg-background/80 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/">
-            <Button variant="ghost" size="sm" className="hover:bg-accent/50">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Home
-            </Button>
-          </Link>
-          <ThemeToggle />
-        </div>
-      </header>
+	return (
+		<div className="min-h-screen flex flex-col">
+			{/* Header */}
+			<header className="border-b border-border/30 bg-background/80 sticky top-0 z-50 shadow-sm">
+				<div className="w-full max-w-3xl mx-auto px-2 sm:px-4 py-4 flex items-center justify-between transition-all duration-300">
+					<Link href="/">
+						<Button
+							variant="ghost"
+							size="icon"
+							className="rounded-full hover:bg-accent/60 transition"
+						>
+							<ArrowLeft className="h-5 w-5" />
+							<span className="sr-only">Back to Home</span>
+						</Button>
+					</Link>
+					<ThemeToggle />
+				</div>
+			</header>
 
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
-        {stage === 'select' && (
-          <div className="space-y-6">
-            <div className="text-center">
-              <h1 className="text-3xl font-bold mb-2">Upload a File</h1>
-              <p className="text-muted-foreground">
-                Securely share files up to 50000 with automatic virus scanning
-              </p>
-            </div>
+			<motion.main
+				className="flex-1 flex items-center justify-center w-full flex-row"
+				initial={{ opacity: 0, scale: 0.98 }}
+				animate={{ opacity: 1, scale: 1 }}
+				transition={{ duration: 0.4, ease: "easeOut" }}
+			>
+				<motion.div
+					className="w-full max-w-2xl mx-auto px-2 sm:px-4 py-6"
+					initial={{ opacity: 0, y: 24 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ duration: 0.35, ease: "easeOut" }}
+				>
+					{stage === "select" && (
+						<motion.div
+							className="space-y-8"
+							initial={{ opacity: 0, y: 24 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: 24 }}
+							transition={{ duration: 0.35, ease: "easeOut" }}
+						>
+							<div className="text-center">
+								<motion.h1
+									className="text-3xl font-bold mb-1 tracking-tight"
+									initial={{ opacity: 0, y: 10 }}
+									animate={{ opacity: 1, y: 0 }}
+									transition={{ delay: 0.1, duration: 0.4 }}
+								>
+									Upload Files
+								</motion.h1>
+								<motion.p
+									className="text-muted-foreground text-base"
+									initial={{ opacity: 0, y: 10 }}
+									animate={{ opacity: 1, y: 0 }}
+									transition={{ delay: 0.15, duration: 0.4 }}
+								>
+									Securely share files up to{" "}
+									<span className="font-semibold">50MB</span> with automatic
+									virus scanning.
+								</motion.p>
+							</div>
 
-            <FileDropzone onFileSelect={handleFileSelect}/>
+							<motion.div
+								initial={{ opacity: 0, scale: 0.98 }}
+								animate={{ opacity: 1, scale: 1 }}
+								transition={{ delay: 0.18, duration: 0.3 }}
+							>
+								<FileDropzone onFileSelect={handleFileSelect} />
+							</motion.div>
 
-            {selectedFiles.length > 0 && (
-              <Card className="bg-card/50 border-border/50">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center">
-                    <FileText className="h-5 w-5 mr-2" />
-                    Selected Files
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    {selectedFiles.map((file, idx) => (
-                      <div key={file.name + file.size} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                        <div>
-                          <p className="font-medium">{file.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatFileSize(file.size)} • {file.type || 'Unknown type'}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={file.size > 50 * 1024 * 1024 ? 'destructive' : 'secondary'}>
-                            {file.size > 50 * 1024 * 1024 ? 'Too Large' : 'Valid'}
-                          </Badge>
-                          <button
-                            type="button"
-                            aria-label="Remove file"
-                            className="ml-2 p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-                            onClick={() => {
-                              setSelectedFiles(selectedFiles.filter((_, i) => i !== idx));
-                              setUploadProgress(uploadProgress.filter((_, i) => i !== idx));
-                              setVirusScanStatus(virusScanStatus.filter((_, i) => i !== idx));
-                            }}
+							<AnimatePresence>
+								{selectedFiles.length > 0 && (
+									<motion.div
+										initial={{ opacity: 0, y: 20, scale: 0.98 }}
+										animate={{ opacity: 1, y: 0, scale: 1 }}
+										exit={{ opacity: 0, y: 20, scale: 0.98 }}
+										transition={{ duration: 0.35, ease: "easeOut" }}
+									>
+										<Card className="bg-card/70 border-none shadow-md rounded-xl">
+											<CardHeader className="pb-2">
+												<CardTitle className="text-base flex items-center gap-2 font-semibold">
+													<FileText className="h-5 w-5 text-primary" />
+													Selected Files
+												</CardTitle>
+											</CardHeader>
+											<CardContent className="space-y-4 pt-0">
+												<div className="space-y-2">
+													<AnimatePresence>
+														{selectedFiles.map((file, idx) => (
+															<motion.div
+																key={file.name + file.size}
+																className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/40"
+																initial={{ opacity: 0, x: 20 }}
+																animate={{ opacity: 1, x: 0 }}
+																exit={{ opacity: 0, x: -20 }}
+																transition={{ duration: 0.2 }}
+															>
+																<div>
+																	<p className="font-medium truncate max-w-[180px]">
+																		{file.name}
+																	</p>
+																	<p className="text-xs text-muted-foreground">
+																		{formatFileSize(file.size)} &middot;{" "}
+																		{file.type || "Unknown"}
+																	</p>
+																</div>
+																<div className="flex items-center gap-2">
+																	<Badge
+																		variant={
+																			file.size > 50 * 1024 * 1024
+																				? "destructive"
+																				: "outline"
+																		}
+																		className="text-xs px-2 py-0.5"
+																	>
+																		{file.size > 50 * 1024 * 1024
+																			? "Too Large"
+																			: "Valid"}
+																	</Badge>
+																	<motion.button
+																		type="button"
+																		aria-label="Remove file"
+																		className="ml-1 p-1 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition"
+																		whileTap={{ scale: 0.85, rotate: -10 }}
+																		onClick={() => {
+																			setSelectedFiles(
+																				selectedFiles.filter(
+																					(_, i) => i !== idx
+																				)
+																			);
+																			setUploadProgress(
+																				uploadProgress.filter(
+																					(_, i) => i !== idx
+																				)
+																			);
+																			setVirusScanStatus(
+																				virusScanStatus.filter(
+																					(_, i) => i !== idx
+																				)
+																			);
+																		}}
+																	>
+																		<X className="h-4 w-4" />
+																	</motion.button>
+																</div>
+															</motion.div>
+														))}
+													</AnimatePresence>
+												</div>
+
+												{/* Settings - Enhanced UI & Animations */}
+												<motion.div
+													id="settings-section"
+													className="space-y-6 pt-5 border-t border-border/30 rounded-xl"
+													initial={{ opacity: 0, y: 16, scale: 0.98 }}
+													animate={{ opacity: 1, y: 0, scale: 1 }}
+													transition={{
+														delay: 0.12,
+														duration: 0.45,
+														type: "spring",
+														bounce: 0.25,
+													}}
+												>
+													{/* Password Protection */}
+													<motion.div
+														className="flex items-center justify-between gap-4"
+														initial={{ opacity: 0, x: 24 }}
+														animate={{ opacity: 1, x: 0 }}
+														transition={{
+															delay: 0.15,
+															duration: 0.4,
+															type: "spring",
+														}}
+													>
+														<div>
+															<Label className="flex items-center gap-2 font-semibold text-lg text-primary">
+																<motion.span
+																	initial={{ rotate: -10, scale: 0.8 }}
+																	animate={{ rotate: 0, scale: 1 }}
+																	transition={{
+																		type: "spring",
+																		stiffness: 200,
+																		damping: 10,
+																	}}
+																>
+																	<Lock className="h-5 w-5 text-primary" />
+																</motion.span>
+																Password
+															</Label>
+															<motion.p
+																className="text-xs text-muted-foreground mt-1"
+																initial={{ opacity: 0, y: 8 }}
+																animate={{ opacity: 1, y: 0 }}
+																transition={{ delay: 0.18, duration: 0.3 }}
+															>
+																Require a password to download
+															</motion.p>
+														</div>
+														<motion.div whileTap={{ scale: 0.88, rotate: 8 }}>
+															<Switch
+																checked={passwordProtected}
+																onCheckedChange={setPasswordProtected}
+																className="data-[state=checked]:ring-2 data-[state=checked]:ring-primary"
+															/>
+														</motion.div>
+													</motion.div>
+
+													<AnimatePresence>
+														{passwordProtected && (
+															<motion.div
+																initial={{ opacity: 0, y: -16, scale: 0.95 }}
+																animate={{ opacity: 1, y: 0, scale: 1 }}
+																exit={{ opacity: 0, y: -16, scale: 0.95 }}
+																transition={{
+																	duration: 0.28,
+																	type: "spring",
+																	bounce: 0.3,
+																}}
+																className="flex items-center gap-2"
+															>
+																<div className="relative w-full">
+																	<Input
+																		id="password"
+																		type={showPassword ? "text" : "password"}
+																		placeholder="Enter a strong password"
+																		value={password}
+																		onChange={(e) =>
+																			setPassword(e.target.value)
+																		}
+																		className="bg-background/70 border-primary/30 focus:ring-2 focus:ring-primary/40 transition-all pr-10 rounded-full"
+																	/>
+																	<Button
+																		type="button"
+																		className="absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition rounded-full"
+																		onClick={() => setShowPassword((v) => !v)}
+																		tabIndex={-1}
+                                    size={"icon"}
+                                    variant={"ghost"}
+                                    
+																	>
+																		{showPassword ? (
+																			<Eye className="h-4 w-4" />
+																		) : (
+																			<Eye className="h-4 w-4 opacity-50" />
+																		)}
+																	</Button>
+																</div>
+															</motion.div>
+														)}
+													</AnimatePresence>
+
+													{/* Max Downloads */}
+													<motion.div
+														className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+														initial={{ opacity: 0, x: 24 }}
+														animate={{ opacity: 1, x: 0 }}
+														transition={{
+															delay: 0.18,
+															duration: 0.4,
+															type: "spring",
+														}}
+													>
+														<div>
+															<Label className="flex items-center gap-2 font-semibold text-lg text-primary">
+																<motion.span
+																	initial={{ scale: 0.8, rotate: 10 }}
+																	animate={{ scale: 1, rotate: 0 }}
+																	transition={{
+																		type: "spring",
+																		stiffness: 200,
+																		damping: 10,
+																	}}
+																>
+																	<Shield className="h-5 w-5 text-primary" />
+																</motion.span>
+																Max Downloads
+															</Label>
+															<motion.p
+																className="text-xs text-muted-foreground mt-1"
+																initial={{ opacity: 0, y: 8 }}
+																animate={{ opacity: 1, y: 0 }}
+																transition={{ delay: 0.22, duration: 0.3 }}
+															>
+																Limit download count (default: 10)
+															</motion.p>
+														</div>
+														<motion.div whileTap={{ scale: 0.88, rotate: -8 }}>
+															<Switch
+																checked={maxDownloadsEnabled}
+																onCheckedChange={setMaxDownloadsEnabled}
+																className="data-[state=checked]:ring-2 data-[state=checked]:ring-primary"
+															/>
+														</motion.div>
+													</motion.div>
+													<AnimatePresence>
+														{maxDownloadsEnabled && (
+															<motion.div
+																initial={{ opacity: 0, y: -16, scale: 0.95 }}
+																animate={{ opacity: 1, y: 0, scale: 1 }}
+																exit={{ opacity: 0, y: -16, scale: 0.95 }}
+																transition={{
+																	duration: 0.28,
+																	type: "spring",
+																	bounce: 0.3,
+																}}
+																className="flex items-center gap-4 pl-1"
+															>
+																{/* <Label
+																	htmlFor="max-downloads-slider"
+																	className="text-sm font-medium"
+																>
+																	Count
+																</Label> */}
+																<div className="flex items-center gap-2 w-full">
+																	<Slider
+																		id="max-downloads-slider"
+																		min={1}
+																		max={20}
+																		step={1}
+																		value={maxDownloads}
+																		onValueChange={([val]) =>
+																			setMaxDownloads([val])
+																		}
+																		className="flex-1"
+																	/>
+																	<span className="ml-2 text-base font-semibold w-8 text-center">
+																		{maxDownloads}
+																	</span>
+																</div>
+															</motion.div>
+														)}
+													</AnimatePresence>
+												</motion.div>
+
+												<motion.div
+													initial={{ opacity: 0, scale: 0.98 }}
+													animate={{ opacity: 1, scale: 1 }}
+													transition={{ delay: 0.1, duration: 0.25 }}
+												>
+													<Button
+														onClick={() => {
+															setStage("captcha");
+															setTimeout(() => {
+																const el =
+																	document.getElementById("settings-section");
+																if (el)
+																	el.scrollIntoView({
+																		behavior: "smooth",
+																		block: "center",
+																	});
+															}, 100);
+														}}
+														className="w-full mt-2 rounded-lg text-base font-semibold py-2 hover:scale-[1.03] transition"
+														disabled={selectedFiles.some(
+															(file) => file.size > 50 * 1024 * 1024
+														)}
+														asChild
+													>
+														<span>
+															<Upload className="h-4 w-4 mr-2" />
+															Continue
+														</span>
+													</Button>
+												</motion.div>
+											</CardContent>
+										</Card>
+									</motion.div>
+								)}
+							</AnimatePresence>
+						</motion.div>
+					)}
+
+          <AnimatePresence>
+            {stage === "uploading" &&
+              selectedFiles.length > 0 &&
+              !uploadError && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.97, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.97, y: 20 }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                >
+                  <Card className="bg-card/80 border-none shadow-lg rounded-2xl px-4 py-6 sm:px-8 sm:py-8">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-4 text-lg font-bold">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <span>
+                          Uploading &amp; Virus Scanning
+                        </span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-8 pt-0">
+                      <div className="flex flex-col gap-5">
+                        {selectedFiles.map((file, idx) => (
+                          <motion.div
+                            key={file.name + file.size}
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.2 }}
+                            className="rounded-lg bg-muted/30 px-5 py-4 shadow-sm"
                           >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-3">
+                                <FileText className="h-4 w-4 text-primary" />
+                                <span className="font-semibold truncate max-w-[180px]">
+                                  {file.name}
+                                </span>
+                              </div>
+                              <span className="text-xs text-muted-foreground font-medium">
+                                {Math.round(uploadProgress[idx] || 0)}%
+                              </span>
+                            </div>
+                            <Progress
+                              value={uploadProgress[idx] || 0}
+                              className="h-2 rounded-full bg-background/60"
+                            />
+                            <div className="flex items-center gap-2 mt-3 text-xs">
+                              <Shield className="h-4 w-4 text-primary" />
+                              {virusScanStatus[idx] === "scanning" && (
+                                <motion.span
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  className="text-muted-foreground flex items-center gap-1"
+                                >
+                                  <span className="animate-pulse">Scanning for viruses...</span>
+                                </motion.span>
+                              )}
+                              {virusScanStatus[idx] === "clean" && (
+                                <motion.span
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  className="text-green-600 flex items-center gap-1 font-semibold"
+                                >
+                                  <Check className="h-4 w-4" />
+                                  Clean
+                                </motion.span>
+                              )}
+                              {virusScanStatus[idx] === "infected" && (
+                                <motion.span
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  className="text-red-600 flex items-center gap-1 font-semibold"
+                                >
+                                  <AlertTriangle className="h-4 w-4" />
+                                  Virus detected
+                                </motion.span>
+                              )}
+                            </div>
+                          </motion.div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-
-                  {/* Settings */}
-                  <div className="space-y-4 pt-4 border-t border-border/50">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label className="flex items-center">
-                          <Lock className="h-4 w-4 mr-2" />
-                          Password Protection
-                        </Label>
-                        <p className="text-sm text-muted-foreground">
-                          Require a password to download
-                        </p>
+                      <div className="flex justify-center mt-6">
+                        <span className="text-sm text-muted-foreground">
+                          Please keep this page open until upload &amp; scan completes.
+                        </span>
                       </div>
-                      <Switch
-                        checked={passwordProtected}
-                        onCheckedChange={setPasswordProtected}
-                      />
-                    </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+          </AnimatePresence>
 
-                    {passwordProtected && (
-                      <div className="space-y-2">
-                        <Label htmlFor="password">Download Password</Label>
-                        <Input
-                          id="password"
-                          type="password"
-                          placeholder="Enter password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="bg-background/50"
-                        />
-                      </div>
-                    )}
-                    {/* Max Downloads Setting */}
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="space-y-0.5">
-                        <Label className="flex items-center">
-                          <Shield className="h-4 w-4 mr-2" />
-                          Max Downloads
-                        </Label>
-                        <p className="text-sm text-muted-foreground">
-                          Limit the number of times this file can be downloaded
-                        </p>
-                      </div>
-                      <Switch
-                        checked={maxDownloadsEnabled}
-                        onCheckedChange={setMaxDownloadsEnabled}
-                      />
-                    </div>
-                    {maxDownloadsEnabled && (
-                      <div className="space-y-2 mt-2">
-                        <Label htmlFor="max-downloads">Max Downloads (1-20)</Label>
-                        <Input
-                          id="max-downloads"
-                          type="number"
-                          min={1}
-                          max={20}
-                          value={maxDownloads}
-                          onChange={e => {
-                            let val = parseInt(e.target.value, 10);
-                            if (isNaN(val)) val = 1;
-                            if (val < 1) val = 1;
-                            if (val > 20) val = 20;
-                            setMaxDownloads(val);
-                          }}
-                          className="bg-background/50 w-24"
-                        />
-                      </div>
-                    )}
-                  </div>
+					<AnimatePresence>
+						{stage === "virus-error" && uploadError && (
+							<motion.div
+								initial={{ opacity: 0, scale: 0.97, y: 20 }}
+								animate={{ opacity: 1, scale: 1, y: 0 }}
+								exit={{ opacity: 0, scale: 0.97, y: 20 }}
+								transition={{ duration: 0.35, ease: "easeOut" }}
+							>
+								<Card className="bg-card/70 border-none shadow-md rounded-xl">
+									<CardHeader>
+										<CardTitle className="flex items-center gap-2 text-red-600 font-semibold">
+											<AlertTriangle className="h-5 w-5" />
+											Error
+										</CardTitle>
+									</CardHeader>
+									<CardContent className="space-y-4">
+										<motion.div
+											className="text-center text-red-600 font-medium"
+											initial={{ opacity: 0, y: 10 }}
+											animate={{ opacity: 1, y: 0 }}
+											transition={{ duration: 0.2 }}
+										>
+											{uploadError}
+										</motion.div>
+										<motion.div
+											initial={{ opacity: 0, scale: 0.98 }}
+											animate={{ opacity: 1, scale: 1 }}
+											transition={{ duration: 0.2 }}
+										>
+											<Button
+												onClick={handleBackToSelect}
+												className="w-full rounded-lg font-semibold"
+											>
+												Try Again
+											</Button>
+										</motion.div>
+									</CardContent>
+								</Card>
+							</motion.div>
+						)}
+					</AnimatePresence>
 
-                  <Button
-                    onClick={() => {
-                      setStage('captcha');
-                      console.log('hCaptcha sitekey:', process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY);
-                    }}
-                    className="w-full hover:scale-105 transition-transform"
-                    disabled={selectedFiles.some(file => file.size > 50 * 1024 * 1024)}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Continue to Upload
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
+					<CaptchaModal
+						isOpen={stage === "captcha"}
+						fileName={
+							selectedFiles.length === 1
+								? selectedFiles[0].name
+								: selectedFiles.length > 1
+								? `${selectedFiles.length} files`
+								: ""
+						}
+						fileSize={selectedFiles.reduce((acc, f) => acc + f.size, 0)}
+						onComplete={handleCaptchaComplete}
+						onClose={() => setStage("select")}
+					/>
 
-        {stage === 'uploading' && selectedFiles.length > 0 && !uploadError && (
-          <Card className="bg-card/50 border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Uploading & Scanning Files
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                {selectedFiles.map((file, idx) => (
-                  <div key={file.name + file.size} className="mb-2">
-                    <div className="flex justify-between text-sm">
-                      <span>{file.name}</span>
-                      <span>{Math.round(uploadProgress[idx] || 0)}%</span>
-                    </div>
-                    <Progress value={uploadProgress[idx] || 0} className="h-2" />
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Shield className="h-4 w-4" />
-                      <span className="text-sm">
-                        {virusScanStatus[idx] === 'scanning' && 'Scanning for viruses...'}
-                        {virusScanStatus[idx] === 'clean' && (
-                          <span className="text-green-600 flex items-center">
-                            <Check className="h-4 w-4 mr-1" />
-                            File is clean and safe
-                          </span>
-                        )}
-                        {virusScanStatus[idx] === 'infected' && (
-                          <span className="text-red-600 flex items-center">
-                            <AlertTriangle className="h-4 w-4 mr-1" />
-                            Virus detected - upload blocked
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {stage === 'virus-error' && uploadError && (
-          <Card className="bg-card/50 border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center text-red-600">
-                <AlertTriangle className="h-5 w-5 mr-2" />
-                Error
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-center text-red-600 font-semibold">
-                {uploadError}
-              </div>
-              <Button onClick={handleBackToSelect} className="w-full hover:scale-105 transition-transform">
-                Go Back to File Upload
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        <CaptchaModal 
-          isOpen={stage === 'captcha'}
-          fileName={selectedFiles.length === 1 ? selectedFiles[0].name : selectedFiles.length > 1 ? `${selectedFiles.length} files` : ''}
-          fileSize={selectedFiles.reduce((acc, f) => acc + f.size, 0)}
-          onComplete={handleCaptchaComplete}
-          onClose={() => setStage('select')}
-        />
-
-        <LinkResultModal
-          isOpen={stage === 'complete'}
-          downloadLink={downloadLinks.length === 1 ? downloadLinks[0] : ''}
-          editToken={editTokens.length === 1 ? editTokens[0] : ''}
-          fileName={selectedFiles.length === 1 ? selectedFiles[0].name : selectedFiles.length > 1 ? `${selectedFiles.length} files` : ''}
-          onClose={() => router.push('/')}
-        />
-      </div>
-    </div>
-  );
+					<LinkResultModal
+						isOpen={stage === "complete"}
+						downloadLink={downloadLinks.length === 1 ? downloadLinks[0] : ""}
+						editToken={editTokens.length === 1 ? editTokens[0] : ""}
+						fileName={
+							selectedFiles.length === 1
+								? selectedFiles[0].name
+								: selectedFiles.length > 1
+								? `${selectedFiles.length} files`
+								: ""
+						}
+						onClose={() => setStage("select")}
+					/>
+				</motion.div>
+			</motion.main>
+		</div>
+	);
 }
