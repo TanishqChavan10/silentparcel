@@ -6,3 +6,7 @@ delete func && cleanup action setup remaining && logs of user in manage page  &&
 chat not chatting
 
 end to end encrption of file using crypt4gh package remaining 
+
+
+  openssl genrsa -out private.pem 2048
+  openssl rsa -in private.pem -pubout -out public.pem
