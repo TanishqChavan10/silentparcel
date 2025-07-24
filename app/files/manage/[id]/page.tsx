@@ -281,13 +281,32 @@ export default function ManageFilePage() {
 		// eslint-disable-next-line
 	}, [isAuthenticated, fileId]);
 
-	const handleAuthenticate = () => {
-		// Simulate token verification (replace with real check if needed)
-		if (editToken && editToken.length >= 10) {
-			setIsAuthenticated(true);
-			setError("");
-		} else {
-			setError("Invalid edit token.");
+	const handleAuthenticate = async () => {
+		setError("");
+		if (!editToken) {
+			setError("Please enter your edit token.");
+			setIsAuthenticated(false);
+			setTimeout(() => setError(""), 3000);
+			return;
+		}
+		try {
+			const res = await fetch(`/api/files/manage/${fileId}`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ editToken }),
+			});
+			const data = await res.json();
+			if (!res.ok || !data.valid) {
+				setError(data.error || "Invalid edit token.");
+				setIsAuthenticated(false);
+				setTimeout(() => setError(""), 3000);
+			} else {
+				setIsAuthenticated(true);
+			}
+		} catch (e) {
+			setError("Failed to validate token.");
+			setIsAuthenticated(false);
+			setTimeout(() => setError(""), 3000);
 		}
 	};
 

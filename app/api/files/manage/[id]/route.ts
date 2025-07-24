@@ -11,6 +11,26 @@ export const runtime = 'nodejs';
 
 // Handles POST requests to update a zip archive: add, delete, or replace files in the archive
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  // Token authentication logic for JSON requests
+  if (request.headers.get('content-type')?.includes('application/json')) {
+    const { id } = params;
+    const { editToken } = await request.json();
+    if (!editToken) {
+      return NextResponse.json({ valid: false, error: 'Missing edit token' }, { status: 400 });
+    }
+    const { data: fileRecord, error } = await supabaseAdmin
+      .from('zip_file_metadata')
+      .select('edit_token')
+      .eq('download_token', id)
+      .single();
+    if (error || !fileRecord) {
+      return NextResponse.json({ valid: false, error: 'File not found' }, { status: 404 });
+    }
+    if (fileRecord.edit_token !== editToken) {
+      return NextResponse.json({ valid: false, error: 'Invalid edit token' }, { status: 403 });
+    }
+    return NextResponse.json({ valid: true });
+  }
   console.log('File manage route: Start POST handler');
   try {
     const { id } = params;
