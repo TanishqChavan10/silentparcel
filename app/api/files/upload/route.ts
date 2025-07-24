@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
     let uploadedFile : any = await res.json();
 
     // Calculate expiry
-    const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const expiryDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString();
 
     // Store file metadata in Supabase, including Appwrite file UID and encryptedKey
     const { data: fileRecord, error: fileInsertError } = await supabaseAdmin.from('zip_file_metadata').insert([

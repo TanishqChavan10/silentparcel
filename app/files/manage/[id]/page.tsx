@@ -107,8 +107,12 @@ function buildFileTree(
 					path: currPath,
 					isFolder: i < parts.length - 1,
 					children: i < parts.length - 1 ? {} : undefined,
-					status: i === parts.length - 1 ? status : "existing",
+					// Always set status to 'to-add' if status param is 'to-add'
+					status: status === "to-add" ? "to-add" : i === parts.length - 1 ? status : "existing",
 				};
+			} else if (status === "to-add") {
+				// If this is a new file/folder, ensure status is 'to-add' for all ancestors
+				node[part].status = "to-add";
 			}
 			if (i === parts.length - 1) {
 				node[part].file = file;
@@ -132,7 +136,7 @@ function mergeFileTrees(
 	existing: FileTreeNode[],
 	toAdd: FileTreeNode[]
 ): FileTreeNode[] {
-	// Recursively merge two trees, preferring to-add status for new files
+	// Recursively merge two trees, always prefer 'to-add' status for new files/folders
 	const map = new Map<string, FileTreeNode>();
 	for (const node of existing) map.set(node.path, { ...node });
 	for (const node of toAdd) {
@@ -140,9 +144,16 @@ function mergeFileTrees(
 			const exist = map.get(node.path)!;
 			if (exist.isFolder && node.children && exist.children) {
 				exist.children = mergeFileTrees(exist.children, node.children);
-			} else {
-				exist.status = node.status; // to-add overrides
+			}
+			// Always prefer 'to-add' status if present
+			if (node.status === "to-add") {
+				exist.status = "to-add";
+			}
+			if (node.file) {
 				exist.file = node.file;
+			}
+			if (node.file_token) {
+				exist.file_token = node.file_token;
 			}
 		} else {
 			map.set(node.path, { ...node });
@@ -193,24 +204,24 @@ function recursiveRemoveOrMarkDelete(nodes: FileTreeNode[], path: string): FileT
 }
 
 // Dedicated function to remove a 'to-add' node (file or folder) and all its children
-function removeToAddNode(nodes: FileTreeNode[], path: string): FileTreeNode[] {
-	return nodes
-		.map((node) => {
-			if (node.path === path && node.status === 'to-add') {
-				return null; // Remove this node (file or folder) and all its children
-			} else if (node.children) {
-				const updatedChildren = removeToAddNode(node.children, path).filter(Boolean) as FileTreeNode[];
-				if (updatedChildren.length === 0 && node.status === 'to-add') {
-					return null;
-				}
-				return {
-					...node,
-					children: updatedChildren,
-				};
-			}
-			return node;
-		})
-		.filter(Boolean) as FileTreeNode[];
+function removeToAddNodeAndChildren(nodes: FileTreeNode[], path: string): FileTreeNode[] {
+  return nodes
+    .map((node) => {
+      if (node.path === path && node.status === 'to-add') {
+        return null; // Remove this node (file or folder) and all its children
+      } else if (node.children) {
+        const updatedChildren = removeToAddNodeAndChildren(node.children, path).filter(Boolean) as FileTreeNode[];
+        if (updatedChildren.length === 0 && node.status === 'to-add') {
+          return null;
+        }
+        return {
+          ...node,
+          children: updatedChildren,
+        };
+      }
+      return node;
+    })
+    .filter(Boolean) as FileTreeNode[];
 }
 
 export default function ManageFilePage() {
@@ -433,12 +444,56 @@ const handleRemovePendingFile = (path: string) => {
 	function renderTree(nodes: FileTreeNode[], depth = 0) {
 		return nodes.map((node) => {
 			const isExpanded = expandedFolders.has(node.path);
+			if (node.status === 'to-add') {
+				// For any new file or folder, show X to remove node and all its children
+				return (
+					<div key={node.path} style={{ marginLeft: depth * 14 }} className="py-0.5">
+						<div className="flex items-center gap-1 group">
+							{node.isFolder ? (
+								<>
+									<button
+										type="button"
+										onClick={() => toggleFolder(node.path)}
+										className="focus:outline-none p-0.5 rounded hover:bg-accent/30 transition"
+										aria-label={isExpanded ? "Collapse folder" : "Expand folder"}
+									>
+										{isExpanded ? (
+											<ChevronDown className="h-4 w-4 text-muted-foreground" />
+										) : (
+											<ChevronRight className="h-4 w-4 text-muted-foreground" />
+										)}
+									</button>
+									<Archive className="h-4 w-4 text-muted-foreground" />
+								</>
+							) : (
+								<span className="inline-block w-5" />
+							)}
+							{!node.isFolder && <FileText className="h-4 w-4 text-muted-foreground" />}
+							<span
+								className={`flex-1 text-sm truncate select-text text-primary`}
+								title={node.name}
+							>
+								{node.name}
+							</span>
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={() => handleRemoveToAddNode(node.path)}
+								className={`text-destructive${!node.isFolder ? ' hover:bg-destructive/10' : ''} p-1`}
+								aria-label="Remove pending node"
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						</div>
+						{node.isFolder && isExpanded && node.children && (
+							<div>{renderTree(node.children, depth + 1)}</div>
+						)}
+					</div>
+				);
+			}
+			// Existing logic for other cases
 			return (
-				<div
-					key={node.path}
-					style={{ marginLeft: depth * 14 }}
-					className="py-0.5"
-				>
+				<div key={node.path} style={{ marginLeft: depth * 14 }} className="py-0.5">
 					{node.isFolder ? (
 						<div className="flex items-center gap-1 group">
 							<button
@@ -455,12 +510,7 @@ const handleRemovePendingFile = (path: string) => {
 							</button>
 							<Archive className="h-4 w-4 text-muted-foreground" />
 							<span
-								className={`flex-1 text-sm truncate select-text ${node.status === "to-delete"
-										? "line-through text-destructive"
-										: node.status === "to-add"
-											? "text-primary"
-											: ""
-									}`}
+								className={`flex-1 text-sm truncate select-text ${node.status === "to-delete" ? "line-through text-destructive" : ""}`}
 								title={node.name}
 							>
 								{node.name}
@@ -485,16 +535,6 @@ const handleRemovePendingFile = (path: string) => {
 								>
 									<Trash2 className="h-4 w-4" />
 								</Button>
-							) : node.status === "to-add" ? (
-								<Button
-									variant="ghost"
-									size="icon"
-									onClick={() => handleRemoveToAddNode(node.path)}
-									className="text-destructive p-1"
-									aria-label="Remove pending"
-								>
-									<X className="h-4 w-4" />
-								</Button>
 							) : null}
 						</div>
 					) : (
@@ -502,12 +542,7 @@ const handleRemovePendingFile = (path: string) => {
 							<span className="inline-block w-5" />
 							<FileText className="h-4 w-4 text-muted-foreground" />
 							<span
-								className={`flex-1 text-sm truncate select-text ${node.status === "to-delete"
-										? "line-through text-destructive"
-										: node.status === "to-add"
-											? "text-primary"
-											: ""
-									}`}
+								className={`flex-1 text-sm truncate select-text ${node.status === "to-delete" ? "line-through text-destructive" : ""}`}
 								title={node.name}
 							>
 								{node.name}
@@ -531,16 +566,6 @@ const handleRemovePendingFile = (path: string) => {
 									aria-label="Delete file"
 								>
 									<Trash2 className="h-4 w-4" />
-								</Button>
-							) : node.status === "to-add" ? (
-								<Button
-									variant="ghost"
-									size="icon"
-									onClick={() => handleRemoveToAddNode(node.path)}
-									className="text-destructive hover:bg-destructive/10 p-1"
-									aria-label="Remove pending"
-								>
-									<X className="h-4 w-4" />
 								</Button>
 							) : null}
 						</div>
@@ -579,7 +604,7 @@ const handleRemovePendingFile = (path: string) => {
 	}
 
 	const handleRemoveToAddNode = (path: string) => {
-		setFileTree((prev) => removeToAddNode(prev, path));
+		setFileTree((prev) => removeToAddNodeAndChildren(prev, path));
 	};
 
 	if (!isAuthenticated) {
@@ -906,7 +931,7 @@ const handleRemovePendingFile = (path: string) => {
 												<div>
 													<h2 className="font-bold text-lg mb-2">Delete File?</h2>
 													<p>
-														This will permanently delete the file from Supabase and Appwrite storage. This action cannot be undone.
+														This will permanently delete the file from Database and Storage. This action cannot be undone.
 													</p>
 													{error && <div className="text-destructive mt-2">{error}</div>}
 												</div>
