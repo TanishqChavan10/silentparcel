@@ -59,7 +59,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: 'Failed to fetch current zip from storage' }, { status: 500 });
     }
     const zipBuffer = Buffer.from(await zipRes.arrayBuffer());
-    const zip = new AdmZip(zipBuffer);
+    // Decrypt the zip buffer before using AdmZip
+    const { decryptZipFile } = require('@/lib/security');
+    const decryptedZipBuffer = decryptZipFile(zipBuffer, fileRecord.encrypted_key);
+    const zip = new AdmZip(decryptedZipBuffer);
 
     // Remove files marked for deletion
     if (filesToDelete.length > 0) {

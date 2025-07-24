@@ -153,16 +153,64 @@ function mergeFileTrees(
 
 // --- Fix markNodeAndChildrenForDelete/unmarkNodeAndChildrenForDelete ---
 function markNodeAndChildrenForDelete(node: FileTreeNode): FileTreeNode {
-	node.status = "to-delete";
-	if (node.children)
-		node.children = node.children.map(markNodeAndChildrenForDelete);
-	return node;
+	return {
+		...node,
+		status: "to-delete",
+		children: node.children ? node.children.map(markNodeAndChildrenForDelete) : undefined,
+	};
 }
 function unmarkNodeAndChildrenForDelete(node: FileTreeNode): FileTreeNode {
-	node.status = node.file ? "existing" : "to-add";
-	if (node.children)
-		node.children = node.children.map(unmarkNodeAndChildrenForDelete);
-	return node;
+	return {
+		...node,
+		status: node.status === "to-add" ? "to-add" : "existing",
+		children: node.children ? node.children.map(unmarkNodeAndChildrenForDelete) : undefined,
+	};
+}
+
+// --- Handler functions for tree actions ---
+function recursiveRemoveOrMarkDelete(nodes: FileTreeNode[], path: string): FileTreeNode[] {
+	return nodes
+		.map((node) => {
+			if (node.path === path) {
+				if (node.status === 'to-add') {
+					return null; // Remove new files/folders and all children
+				} else {
+					return markNodeAndChildrenForDelete({ ...node }); // Mark existing for deletion (recursively)
+				}
+			} else if (node.children) {
+				const updatedChildren = recursiveRemoveOrMarkDelete(node.children, path).filter(Boolean) as FileTreeNode[];
+				if (updatedChildren.length === 0 && node.status === 'to-add') {
+					return null;
+				}
+				return {
+					...node,
+					children: updatedChildren,
+				};
+			}
+			return node;
+		})
+		.filter(Boolean) as FileTreeNode[];
+}
+
+// Dedicated function to remove a 'to-add' node (file or folder) and all its children
+function removeToAddNode(nodes: FileTreeNode[], path: string): FileTreeNode[] {
+	return nodes
+		.map((node) => {
+			if (node.path === path && node.status === 'to-add') {
+				return null; // Remove this node (file or folder) and all its children
+			} else if (node.children) {
+				const updatedChildren = removeToAddNode(node.children, path).filter(Boolean) as FileTreeNode[];
+				if (updatedChildren.length === 0 && node.status === 'to-add') {
+					return null;
+				}
+				return {
+					...node,
+					children: updatedChildren,
+				};
+			}
+			return node;
+		})
+		.filter(Boolean) as FileTreeNode[];
 }
 
 export default function ManageFilePage() {
@@ -285,48 +333,9 @@ export default function ManageFilePage() {
 		setFileTree((prev) => mergeFileTrees(prev, toAddTree));
 	};
 
-	// --- Handler functions for tree actions ---
-	const handleUndoDeleteNode = (path: string) => {
-		setFileTree((prev) =>
-			prev.map((node) => {
-				if (node.path === path) {
-					return unmarkNodeAndChildrenForDelete({ ...node });
-				} else if (node.children) {
-					return {
-						...node,
-						children: node.children.map((child) =>
-							child.path === path
-								? unmarkNodeAndChildrenForDelete({ ...child })
-								: child
-						),
-					};
-				}
-				return node;
-			})
-		);
-	};
-	const handleDeleteNode = (path: string) => {
-		setFileTree((prev) =>
-			prev.map((node) => {
-				if (node.path === path) {
-					return markNodeAndChildrenForDelete({ ...node });
-				} else if (node.children) {
-					return {
-						...node,
-						children: node.children.map((child) =>
-							child.path === path
-								? markNodeAndChildrenForDelete({ ...child })
-								: child
-						),
-					};
-				}
-				return node;
-			})
-		);
-	};
-	const handleRemovePendingFile = (path: string) => {
-		setFileTree((prev) => prev.filter((node) => node.path !== path));
-	};
+const handleRemovePendingFile = (path: string) => {
+	setFileTree((prev) => recursiveRemoveOrMarkDelete(prev, path));
+};
 
 	// Handler for marking an existing file for deletion
 	const handleDeleteExistingFile = (fileToken: string) => {
@@ -457,17 +466,17 @@ export default function ManageFilePage() {
 								>
 									<Trash2 className="h-4 w-4" />
 								</Button>
-							) : (
+							) : node.status === "to-add" ? (
 								<Button
 									variant="ghost"
 									size="icon"
-									onClick={() => handleRemovePendingFile(node.path)}
+									onClick={() => handleRemoveToAddNode(node.path)}
 									className="text-destructive p-1"
 									aria-label="Remove pending"
 								>
 									<X className="h-4 w-4" />
 								</Button>
-							)}
+							) : null}
 						</div>
 					) : (
 						<div className="flex items-center gap-1 group">
@@ -504,17 +513,17 @@ export default function ManageFilePage() {
 								>
 									<Trash2 className="h-4 w-4" />
 								</Button>
-							) : (
+							) : node.status === "to-add" ? (
 								<Button
 									variant="ghost"
 									size="icon"
-									onClick={() => handleRemovePendingFile(node.path)}
+									onClick={() => handleRemoveToAddNode(node.path)}
 									className="text-destructive hover:bg-destructive/10 p-1"
 									aria-label="Remove pending"
 								>
 									<X className="h-4 w-4" />
 								</Button>
-							)}
+							) : null}
 						</div>
 					)}
 					{node.isFolder && isExpanded && node.children && (
@@ -524,6 +533,35 @@ export default function ManageFilePage() {
 			);
 		});
 	}
+
+	const handleUndoDeleteNode = (path: string) => {
+		setFileTree((prev) =>
+			recursiveUpdateNode(prev, path, (node) => unmarkNodeAndChildrenForDelete({ ...node }))
+		);
+	};
+	const handleDeleteNode = (path: string) => {
+		setFileTree((prev) =>
+			recursiveUpdateNode(prev, path, (node) => markNodeAndChildrenForDelete({ ...node }))
+		);
+	};
+
+	function recursiveUpdateNode(nodes: FileTreeNode[], path: string, updater: (node: FileTreeNode) => FileTreeNode): FileTreeNode[] {
+		return nodes.map((node) => {
+			if (node.path === path) {
+				return updater(node);
+			} else if (node.children) {
+				return {
+					...node,
+					children: recursiveUpdateNode(node.children, path, updater),
+				};
+			}
+			return node;
+		});
+	}
+
+	const handleRemoveToAddNode = (path: string) => {
+		setFileTree((prev) => removeToAddNode(prev, path));
+	};
 
 	if (!isAuthenticated) {
 		return (

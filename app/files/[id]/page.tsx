@@ -311,10 +311,21 @@ export default function FileDownloadPage() {
 		const i = Math.floor(Math.log(bytes) / Math.log(k));
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 	}
-	function formatDate(date: string | Date | undefined) {
+	function formatDate(date: string | Date | undefined) {  // gives IST based time
 		if (!date) return "";
 		const d = new Date(date);
-		return d.toLocaleDateString() + " at " + d.toLocaleTimeString();
+		const istOffset = 5.5 * 60; // IST is UTC +5:30 in minutes
+		const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+		const istTime = new Date(utc + istOffset * 60000);
+		return istTime.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) +
+			" at " +
+			istTime.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" });
+	}
+
+	function onlyDate(date: string | Date | undefined) {
+		if (!date) return "";
+		const d = new Date(date);
+		return d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" });
 	}
 
 	const handleUnlock = async () => {
@@ -446,7 +457,7 @@ export default function FileDownloadPage() {
 											{fileInfo?.name}
 										</CardTitle>
 										<p className="text-muted-foreground text-sm">
-											{formatFileSize(fileInfo?.size ?? 0)} &middot; Uploaded{" "}
+											{formatFileSize(fileInfo?.size ?? 0)} &middot; Uploaded{"  "}
 											{formatDate(fileInfo?.uploadDate)}
 										</p>
 									</div>
@@ -462,7 +473,6 @@ export default function FileDownloadPage() {
 												<Lock className="h-3 w-3 mr-1" />
 												Protected
 											</Badge>
-										)
 									</div>
 								</div>
 							</CardHeader>
@@ -678,13 +688,9 @@ export default function FileDownloadPage() {
 					<motion.div variants={subtleMotion}>
 						<div className="text-center space-y-2 mt-6">
 							<p className="text-xs text-muted-foreground">
-								Downloaded {fileInfo?.downloadCount} times &middot; Expires{" "}
-								{formatDate(fileInfo?.expiryDate)}
+								Expires on {" "}
+								{onlyDate(fileInfo?.expiryDate)}
 							</p>
-							<Button variant="link" size="sm" className="text-xs">
-								<AlertTriangle className="h-3 w-3 mr-1" />
-								Report Abuse
-							</Button>
 						</div>
 					</motion.div>
 				</motion.div>
