@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { databases, storage, ID, DATABASE_ID, COLLECTIONS, BUCKETS } from '@/lib/appwrite';
-import { fileUploadRateLimiter } from '@/lib/middleware/rateLimiter';
+import { BUCKETS } from '@/lib/appwrite';
 import { generateId, generateSecureId, validateFileType, validateFileSize, getClientIP, getAllowedTypes, hashPassword } from '@/lib/security';
 import { supabaseAdmin } from '@/lib/supabase';
-import redis, { REDIS_KEYS, setWithExpiry } from '@/lib/redis';
 import { virusScanner } from '@/lib/virusScanner';
 import { logger } from '@/lib/logger';
 import FormData from 'form-data';
@@ -258,13 +256,6 @@ export async function POST(request: NextRequest) {
         subfiles: subfileMetadata.length
       }
     });
-
-    // Store tokens in Redis for quick access
-    await setWithExpiry(
-      REDIS_KEYS.FILE_UPLOAD(downloadToken),
-      JSON.stringify({ fileId, editToken }),
-      24 * 60 * 60 // 24 hours
-    );
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.nextUrl.origin;
     const downloadUrl = `${baseUrl}/files/${downloadToken}`;

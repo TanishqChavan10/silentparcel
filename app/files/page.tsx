@@ -26,9 +26,6 @@ import Link from "next/link";
 import { FileDropzone } from "@/components/file-dropzone";
 import { CaptchaModal } from "@/components/captcha-modal";
 import { LinkResultModal } from "@/components/link-result-modal";
-import { storage, BUCKETS } from "@/lib/appwrite";
-import { ID } from "appwrite";
-import { Readable } from "stream";
 import { AnimatePresence, motion } from "motion/react";
 import { Slider } from "@/components/ui/slider";
 

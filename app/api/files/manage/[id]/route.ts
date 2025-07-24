@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { storage, BUCKETS } from '@/lib/appwrite';
+import { BUCKETS } from '@/lib/appwrite';
 import { generateId, generateSecureId, getClientIP } from '@/lib/security';
 import AdmZip from 'adm-zip';
 import FormData from 'form-data';
