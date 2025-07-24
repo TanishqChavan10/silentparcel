@@ -311,7 +311,7 @@ export default function FileDownloadPage() {
 		const i = Math.floor(Math.log(bytes) / Math.log(k));
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 	}
-	function formatDate(date: string | Date | undefined) {  // gives IST based time
+	function formatDayTime(date: string | Date | undefined) {  // gives IST based time
 		if (!date) return "";
 		const d = new Date(date);
 		const istOffset = 5.5 * 60; // IST is UTC +5:30 in minutes
@@ -458,7 +458,7 @@ export default function FileDownloadPage() {
 										</CardTitle>
 										<p className="text-muted-foreground text-sm">
 											{formatFileSize(fileInfo?.size ?? 0)} &middot; Uploaded{"  "}
-											{formatDate(fileInfo?.uploadDate)}
+											{formatDayTime(fileInfo?.uploadDate)}
 										</p>
 									</div>
 									<div className="flex flex-col items-end ml-auto space-y-2">

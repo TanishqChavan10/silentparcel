@@ -281,13 +281,31 @@ export default function ManageFilePage() {
 		// eslint-disable-next-line
 	}, [isAuthenticated, fileId]);
 
-	const handleAuthenticate = () => {
-		// Simulate token verification (replace with real check if needed)
-		if (editToken && editToken.length >= 10) {
-			setIsAuthenticated(true);
-			setError("");
-		} else {
-			setError("Invalid edit token.");
+	const handleAuthenticate = async () => {
+		setError("");
+		if (!editToken) {
+			setError("Please enter your edit token.");
+			setTimeout(() => setError(""), 3000);
+			return;
+		}
+		try {
+			const res = await fetch(`/api/files/manage/${fileId}`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ editToken }),
+			});
+			const data = await res.json();
+			if (!res.ok || !data.valid) {
+				setError(data.error || "Invalid edit token.");
+				setIsAuthenticated(false);
+				setTimeout(() => setError(""), 3000);
+			} else {
+				setIsAuthenticated(true);
+			}
+		} catch (e) {
+			setError("Failed to validate token.");
+			setIsAuthenticated(false);
+			setTimeout(() => setError(""), 3000);
 		}
 	};
 
@@ -299,9 +317,11 @@ export default function ManageFilePage() {
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 	};
 
-	const formatDate = (date: Date) => {
-		return date.toLocaleDateString() + " at " + date.toLocaleTimeString();
-	};
+	function onlyDate(date: string | Date | undefined) {
+		if (!date) return "";
+		const d = new Date(date);
+		return d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" });
+	}
 
 	const handleDeleteFile = async () => {
 		setDeleting(true);
@@ -717,7 +737,7 @@ const handleRemovePendingFile = (path: string) => {
 										<CardTitle className="text-xl">{fileInfo.name}</CardTitle>
 										<p className="text-muted-foreground">
 											{formatFileSize(fileInfo.size)} • Uploaded{" "}
-											{new Date(fileInfo.uploadDate).toLocaleDateString()}
+											{onlyDate(fileInfo.uploadDate)}
 										</p>
 									</div>
 								</div>
@@ -872,7 +892,7 @@ const handleRemovePendingFile = (path: string) => {
 									<div className="flex items-center justify-between">
 										<span className="text-sm">Expiry Date</span>
 										<span className="text-sm font-medium">
-											{new Date(fileInfo.expiryDate).toLocaleDateString()}
+											{onlyDate(fileInfo.expiryDate)}
 										</span>
 									</div>
 									<div className="pt-4 border-t border-border/30">
@@ -887,7 +907,7 @@ const handleRemovePendingFile = (path: string) => {
 												<div>
 													<h2 className="font-bold text-lg mb-2">Delete File?</h2>
 													<p>
-														This will permanently delete the file from Supabase and Appwrite storage. This action cannot be undone.
+														This will permanently delete the file from Database and Storage. This action cannot be undone.
 													</p>
 													{error && <div className="text-destructive mt-2">{error}</div>}
 												</div>
