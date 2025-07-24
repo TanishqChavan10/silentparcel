@@ -7,14 +7,12 @@ import {
 	Download,
 	Lock,
 	Shield,
-	AlertTriangle,
 	FileText,
 	Archive,
 	Edit,
 	Folder,
 	ChevronDown,
 	ChevronRight,
-	CheckCircle2,
 	XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
