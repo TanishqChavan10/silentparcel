@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { databases, storage, ID, DATABASE_ID, COLLECTIONS, BUCKETS } from '@/lib/appwrite';
 import { fileUploadRateLimiter } from '@/lib/middleware/rateLimiter';
-import { generateId, generateSecureId, validateFileType, validateFileSize, getClientIP, getAllowedTypes } from '@/lib/security';
+import { generateId, generateSecureId, validateFileType, validateFileSize, getClientIP, getAllowedTypes, hashPassword } from '@/lib/security';
 import { supabaseAdmin } from '@/lib/supabase';
 import redis, { REDIS_KEYS, setWithExpiry } from '@/lib/redis';
 import { virusScanner } from '@/lib/virusScanner';
@@ -189,7 +189,12 @@ export async function POST(request: NextRequest) {
     let uploadedFile : any = await res.json();
 
     // Calculate expiry
-    const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const expiryDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString();
+
+    let hashedPassword = null;
+    if (password) {
+      hashedPassword = await hashPassword(password);
+    }
 
     // Store file metadata in Supabase, including Appwrite file UID and encryptedKey
     const { data: fileRecord, error: fileInsertError } = await supabaseAdmin.from('zip_file_metadata').insert([
@@ -199,7 +204,7 @@ export async function POST(request: NextRequest) {
         mime_type: 'application/zip',
         download_token: downloadToken,
         edit_token: editToken,
-        password: password || null,
+        password: hashedPassword,
         expiry_date: expiryDate,
         max_downloads: maxDownloads,
         download_count: 0,
