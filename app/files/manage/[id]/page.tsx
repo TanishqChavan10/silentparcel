@@ -177,7 +177,6 @@ export default function ManageFilePage() {
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
 	const [error, setError] = useState("");
 	const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
-	const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
 	const [newFiles, setNewFiles] = useState<File[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [uploading, setUploading] = useState(false);
@@ -752,10 +751,6 @@ export default function ManageFilePage() {
 								<Archive className="h-4 w-4 mr-1" />
 								Files
 							</TabsTrigger>
-							<TabsTrigger value="logs" className="flex-1">
-								<Users className="h-4 w-4 mr-1" />
-								Logs
-							</TabsTrigger>
 							<TabsTrigger value="settings" className="flex-1">
 								<Shield className="h-4 w-4 mr-1" />
 								Settings
@@ -812,85 +807,6 @@ export default function ManageFilePage() {
 								</CardContent>
 							</Card>
 						</TabsContent>
-
-						<TabsContent value="logs" className="space-y-4">
-							<Card className="bg-card/40 border-none shadow-none">
-								<CardHeader className="pb-2">
-									<CardTitle className="flex items-center gap-2 text-base font-semibold">
-										Access Logs
-										<Badge variant="secondary">{accessLogs.length}</Badge>
-									</CardTitle>
-								</CardHeader>
-								<CardContent className="pt-0">
-									<ScrollArea className="h-56 rounded-md border border-border/30 bg-muted/10">
-										{accessLogs.length > 0 ? (
-											<table className="min-w-full text-xs">
-												<thead>
-													<tr className="bg-muted/20">
-														<th className="px-2 py-2 text-left font-semibold">
-															Action
-														</th>
-														<th className="px-2 py-2 text-left font-semibold">
-															IP Address
-														</th>
-														<th className="px-2 py-2 text-left font-semibold">
-															Date & Time
-														</th>
-														<th className="px-2 py-2 text-left font-semibold">
-															User Agent
-														</th>
-													</tr>
-												</thead>
-												<tbody>
-													{accessLogs.map((log) => (
-														<tr
-															key={log.id}
-															className="hover:bg-muted/30 transition"
-														>
-															<td className="px-2 py-2">
-																<Badge
-																	variant={
-																		log.action === "download"
-																			? "default"
-																			: "secondary"
-																	}
-																	className="px-2"
-																>
-																	{log.action === "download" ? (
-																		<Download className="h-3 w-3 mr-1 inline" />
-																	) : (
-																		<Eye className="h-3 w-3 mr-1 inline" />
-																	)}
-																	{log.action.charAt(0).toUpperCase() +
-																		log.action.slice(1)}
-																</Badge>
-															</td>
-															<td className="px-2 py-2 text-muted-foreground">
-																{log.ip}
-															</td>
-															<td className="px-2 py-2 text-muted-foreground">
-																{formatDate(log.timestamp)}
-															</td>
-															<td
-																className="px-2 py-2 text-muted-foreground truncate max-w-[120px]"
-																title={log.userAgent}
-															>
-																{log.userAgent}
-															</td>
-														</tr>
-													))}
-												</tbody>
-											</table>
-										) : (
-											<div className="text-center text-muted-foreground py-8 text-sm">
-												No access logs yet.
-											</div>
-										)}
-									</ScrollArea>
-								</CardContent>
-							</Card>
-						</TabsContent>
-
 						<TabsContent value="settings" className="space-y-4">
 							<Card className="bg-card/40 border-none shadow-none">
 								<CardHeader className="pb-2">

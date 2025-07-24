@@ -458,12 +458,11 @@ export default function FileDownloadPage() {
 											<Shield className="h-3 w-3 mr-1 text-green-600" />
 											Virus Free
 										</Badge>
-										{fileInfo?.isPasswordProtected && (
 											<Badge variant="secondary">
 												<Lock className="h-3 w-3 mr-1" />
 												Protected
 											</Badge>
-										)}
+										)
 									</div>
 								</div>
 							</CardHeader>

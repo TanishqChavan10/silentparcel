@@ -111,7 +111,7 @@ export default function FilesPage() {
 		// Add maxDownloads to formData
 		formData.append(
 			"maxDownloads",
-			String(maxDownloadsEnabled ? maxDownloads : 20)
+			String(maxDownloadsEnabled ? maxDownloads : 10)
 		);
 
 		try {
