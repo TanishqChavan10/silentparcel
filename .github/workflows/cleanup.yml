@@ -1,8 +1,12 @@
-name: Cleanup Expired Files v1
+
+.github/workflows/cleanup.yml
+
+name: Cleanup Expired Files v2
 
 on:
   schedule:
-    - cron: '0 * * * *' # every hour
+    - cron: '0 * * * *' # every hour , minute ,hour ,day of month,  month , day of week
+  workflow_dispatch:
 
 jobs:
   cleanup:
@@ -22,5 +26,5 @@ jobs:
           NEXT_PUBLIC_APPWRITE_ENDPOINT: ${{ secrets.NEXT_PUBLIC_APPWRITE_ENDPOINT }}
           NEXT_PUBLIC_APPWRITE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_APPWRITE_PROJECT_ID }}
           APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-          BUCKETS_FILES: ${{ secrets.BUCKETS_FILES }}
-        run: node scripts/cleanup-expired-files.js
+          NEXT_PUBLIC_APPWRITE_BUCKET_KEY: ${{ secrets.NEXT_PUBLIC_APPWRITE_BUCKET_KEY }}
+        run: node cleanup-expired-files.js
