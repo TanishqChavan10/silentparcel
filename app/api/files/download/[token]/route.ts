@@ -74,7 +74,7 @@ export async function GET(
     const { token } = params;
     const { searchParams } = new URL(request.url);
     const password = searchParams.get("password");
-    const meta = searchParams.get("meta");
+    const meta = searchParams.get("meta"); // searches word meta from the request url
 
     // Fetch file metadata
     console.log('Fetching file metadata from database');
@@ -115,7 +115,7 @@ export async function GET(
         { status: 410 }
       );
     }
-    if (meta === "1") {
+    if (meta === "1") {  // if url contains meta having value 1 i.e ?meta=1 returns the following
       console.log('Returning file metadata');
       const metadata = {
         id: fileRecord.id,
@@ -126,7 +126,7 @@ export async function GET(
         downloadCount: fileRecord.download_count,
         maxDownloads: fileRecord.max_downloads,
         expiryDate: fileRecord.expiry_date,
-        isPasswordProtected: !!fileRecord.password,
+        isPasswordProtected: !!fileRecord.password,  // this shows password protected or not
         virusScanStatus: fileRecord.virus_scan_status,
         appwrite_id: fileRecord.appwrite_id,
         isActive: fileRecord.is_active
