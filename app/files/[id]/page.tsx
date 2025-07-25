@@ -140,8 +140,8 @@ export default function FileDownloadPage() {
 	);
 	const [downloading, setDownloading] = useState(false);
 	const [error, setError] = useState("");
-	const [showEditToken, setShowEditToken] = useState(false);
-	const [editToken, setEditToken] = useState("");
+	// const [showEditToken, setShowEditToken] = useState(false);
+	// const [editToken, setEditToken] = useState("");
 	const params = useParams();
 	const [fileExists, setFileExists] = useState(true);
 	const [fileInfo, setFileInfo] = useState<any>(null);
@@ -328,7 +328,32 @@ export default function FileDownloadPage() {
 
 	const handleUnlock = async () => {
 		setError("");
-		setIsUnlocked(true); // In production, validate password server-side
+		try {
+			const res = await fetch(`/api/files/download/${fileId}?meta=1`, {
+				method: "GET",
+			});
+			if (!res.ok) {
+				setError("File not found or expired");
+				return;
+			}
+			const meta = await res.json();
+			if (!meta.isPasswordProtected) {
+				setIsUnlocked(true);
+				return;
+			}
+			// Now validate password by calling the download endpoint with password
+			const checkRes = await fetch(`/api/files/download/${fileId}?password=${encodeURIComponent(password)}`, {
+				method: "HEAD"
+			});
+			if (checkRes.ok) {
+				setIsUnlocked(true);
+			} else {
+				const errData = await checkRes.json().catch(() => ({}));
+				setError(errData.error || "Invalid password");
+			}
+		} catch (e) {
+			setError("Failed to validate password");
+		}
 	};
 
 	const handleDownloadSelected = async () => {
@@ -354,10 +379,10 @@ export default function FileDownloadPage() {
 				return;
 			}
 			const blob = await res.blob();
-			const url = window.URL.createObjectURL(blob);
+			const url = window.URL.createObjectURL(blob); 
 			const a = document.createElement("a");
 			a.href = url;
-			a.download = `${fileInfo?.name.replace(/\.zip$/, "")}_partial.zip`;
+			a.download = `${fileInfo?.name.replace(/\.zip$/, "")}_partial.zip`;  // adds partial in the file name
 			document.body.appendChild(a);
 			a.click();
 			a.remove();

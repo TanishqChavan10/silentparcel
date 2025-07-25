@@ -61,13 +61,6 @@ interface FileInfo {
 	isActive: boolean;
 }
 
-interface AccessLog {
-	id: string;
-	ip: string;
-	timestamp: Date;
-	action: "download" | "view";
-	userAgent: string;
-}
 
 // --- Tree Utilities ---
 type FileTreeNode = {
@@ -175,29 +168,6 @@ function unmarkNodeAndChildrenForDelete(node: FileTreeNode): FileTreeNode {
 }
 
 // --- Handler functions for tree actions ---
-function recursiveRemoveOrMarkDelete(nodes: FileTreeNode[], path: string): FileTreeNode[] {
-	return nodes
-		.map((node) => {
-			if (node.path === path) {
-				if (node.status === 'to-add') {
-					return null; // Remove new files/folders and all children
-				} else {
-					return markNodeAndChildrenForDelete({ ...node }); // Mark existing for deletion (recursively)
-				}
-			} else if (node.children) {
-				const updatedChildren = recursiveRemoveOrMarkDelete(node.children, path).filter(Boolean) as FileTreeNode[];
-				if (updatedChildren.length === 0 && node.status === 'to-add') {
-					return null;
-				}
-				return {
-					...node,
-					children: updatedChildren,
-				};
-			}
-			return node;
-		})
-		.filter(Boolean) as FileTreeNode[];
-}
 
 // Dedicated function to remove a 'to-add' node (file or folder) and all its children
 function removeToAddNodeAndChildren(nodes: FileTreeNode[], path: string): FileTreeNode[] {
@@ -325,9 +295,6 @@ export default function ManageFilePage() {
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 	};
 
-	const formatDate = (date: Date) => {
-		return date.toLocaleDateString() + " at " + date.toLocaleTimeString();
-	};
 
 	const handleDeleteFile = async () => {
 		setDeleting(true);
@@ -359,19 +326,7 @@ export default function ManageFilePage() {
 		setFileTree((prev) => mergeFileTrees(prev, toAddTree));
 	};
 
-const handleRemovePendingFile = (path: string) => {
-	setFileTree((prev) => recursiveRemoveOrMarkDelete(prev, path));
-};
 
-	// Handler for marking an existing file for deletion
-	const handleDeleteExistingFile = (fileToken: string) => {
-		setFilesToDelete((prev) => [...prev, fileToken]);
-	};
-
-	// Handler for undoing delete on an existing file
-	const handleUndoDeleteExistingFile = (fileToken: string) => {
-		setFilesToDelete((prev) => prev.filter((token) => token !== fileToken));
-	};
 
 	// --- Folder expand/collapse logic ---
 	const toggleFolder = (path: string) => {

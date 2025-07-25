@@ -44,7 +44,7 @@ interface FileData {
 }
 
 export default function FilesPage() {
-	const router = useRouter();
+	// const router = useRouter();
 	const [stage, setStage] = useState<UploadStage>("select");
 	const [selectedFiles, setSelectedFiles] = useState<FileData[]>([]);
 	const [uploadProgress, setUploadProgress] = useState<number[]>([]);
