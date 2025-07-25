@@ -1,4 +1,4 @@
-name: Cleanup Expired Files
+name: Cleanup Expired Files v1
 
 on:
   schedule:
