@@ -140,6 +140,9 @@ importers:
       bcryptjs:
         specifier: ^2.4.3
         version: 2.4.3
+      ci:
+        specifier: ^2.3.0
+        version: 2.3.0
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.1
@@ -1781,6 +1784,10 @@ packages:
   chownr@3.0.0:
     resolution: {integrity: sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g==}
     engines: {node: '>=18'}
+
+  ci@2.3.0:
+    resolution: {integrity: sha512-0MGXkzJKkwV3enG7RUxjJKdiAkbaZ7visCjitfpCN2BQjv02KGRMxCHLv4RPokkjJ4xR33FLMAXweS+aQ0pFSQ==}
+    hasBin: true
 
   cipher-base@1.0.6:
     resolution: {integrity: sha512-3Ek9H3X6pj5TgenXYtNWdaBon1tgYCaebd+XPg0keyjEbEfkD4KkmAxkQ/i1vYvxdcT5nscLBfq9VJRmCBcFSw==}
@@ -5397,6 +5404,8 @@ snapshots:
       supports-color: 7.2.0
 
   chownr@3.0.0: {}
+
+  ci@2.3.0: {}
 
   cipher-base@1.0.6:
     dependencies:

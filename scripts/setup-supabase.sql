@@ -1,3 +1,57 @@
+CREATE TABLE zip_subfile_metadata (
+    id SERIAL PRIMARY KEY,
+    zip_id INTEGER NOT NULL REFERENCES zip_file_metadata(id) ON DELETE CASCADE, 
+    file_name VARCHAR(255) NOT NULL,
+    file_path TEXT NOT NULL,  -- full path inside the zip archive
+    size BIGINT NOT NULL,
+    mime_type VARCHAR(100),
+    file_token VARCHAR(64) UNIQUE,  -- optional, for downloading individual file
+    extracted BOOLEAN DEFAULT FALSE,
+    downloaded_at TIMESTAMP NOT NULL DEFAULT now()   --default time zone is UTC
+);
+
+CREATE TABLE zip_file_metadata (
+    id SERIAL PRIMARY KEY,
+    original_name VARCHAR(255) NOT NULL,
+    size BIGINT NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    download_token VARCHAR(64) UNIQUE NOT NULL,
+    edit_token VARCHAR(64) UNIQUE NOT NULL,
+    password VARCHAR(255),
+    expiry_date TIMESTAMP,
+    max_downloads INTEGER DEFAULT 10,
+    download_count INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    uploaded_at TIMESTAMP NOT NULL DEFAULT now(),
+    uploaded_by VARCHAR(45) NOT NULL,
+    last_downloaded_at TIMESTAMP NOT NULL DEFAULT now(), 
+    appwrite_id VARCHAR(64) NOT NULL,
+    encrypted_key TEXT NOT NULL,
+    CONSTRAINT unique_appwrite_id UNIQUE (appwrite_id)
+);
+
+CREATE TABLE files (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    original_name VARCHAR(255) NOT NULL,
+    size BIGINT NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    download_token VARCHAR(64) NOT NULL,
+    edit_token VARCHAR(64) NOT NULL,
+    password VARCHAR(255),
+    expiry_date TIMESTAMP,
+    max_downloads INTEGER,
+    download_count INTEGER NOT NULL DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    uploaded_at TIMESTAMP NOT NULL DEFAULT now(),  --default time zone is UTC
+    uploaded_by VARCHAR(45) NOT NULL,
+    last_downloaded_at TIMESTAMP
+);
+
+-- Optional: Add indexes for fast lookup by token and upload date
+CREATE UNIQUE INDEX idx_files_download_token ON files(download_token);
+CREATE UNIQUE INDEX idx_files_edit_token ON files(edit_token);
+CREATE INDEX idx_files_uploaded_at ON files(uploaded_at);
+
 -- Create audit_logs table
 CREATE TABLE IF NOT EXISTS public.audit_logs (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -8,7 +62,7 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
     ip_address INET,
     user_agent TEXT,
     metadata JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP NOT NULL DEFAULT now()  --default time zone is UTC
 );
 
 -- Create indexes for better performance
