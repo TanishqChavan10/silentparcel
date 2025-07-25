@@ -1,6 +1,3 @@
-
-.github/workflows/cleanup.yml
-
 name: Cleanup Expired Files v2
 
 on:
