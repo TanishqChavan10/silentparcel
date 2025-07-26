@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
     resource_id VARCHAR(100) NOT NULL,
     user_id VARCHAR(100),
     ip_address INET,
-    user_agent TEXT,
+    -- user_agent TEXT,
     metadata JSONB,
     created_at TIMESTAMP NOT NULL DEFAULT now()  --default time zone is UTC
 );
@@ -79,7 +79,7 @@ COMMENT ON COLUMN public.audit_logs.resource_type IS 'Type of resource (file, ch
 COMMENT ON COLUMN public.audit_logs.resource_id IS 'ID of the resource being acted upon';
 COMMENT ON COLUMN public.audit_logs.user_id IS 'ID of the user performing the action (nullable for anonymous actions)';
 COMMENT ON COLUMN public.audit_logs.ip_address IS 'IP address of the client';
-COMMENT ON COLUMN public.audit_logs.user_agent IS 'User agent string from the client';
+COMMENT ON COLUMN public.audit_logs.// user_agent IS 'User agent string from the client';
 COMMENT ON COLUMN public.audit_logs.metadata IS 'Additional metadata about the action in JSON format';
 
 -- Create RLS (Row Level Security) policies if needed

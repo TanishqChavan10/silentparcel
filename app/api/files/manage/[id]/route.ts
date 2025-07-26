@@ -222,7 +222,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       resource_type: 'zip',
       resource_id: fileRecord.id,
       ip_address: getClientIP(request),
-      user_agent: request.headers.get('user-agent'),
+      // user_agent: request.headers.get('user-agent'),
       metadata: {
         added: subfileRows.map(f => f.file_path),
         deleted: filesToDelete,
@@ -291,7 +291,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       resource_type: 'zip',
       resource_id: fileRecord.id,
       ip_address: getClientIP(request),
-      user_agent: request.headers.get('user-agent'),
+      // user_agent: request.headers.get('user-agent'),
       metadata: {
         filename: fileRecord.original_name,
         reason: 'user_deleted',
