@@ -329,28 +329,45 @@ export default function FileDownloadPage() {
 	const handleUnlock = async () => {
 		setError("");
 		try {
+			// If password is provided, directly validate it without making metadata request
+			if (password) {
+				const checkRes = await fetch(`/api/files/download/${fileId}?password=${encodeURIComponent(password)}`, {
+					method: "HEAD"
+				});
+				
+				if (checkRes.ok) {
+					setIsUnlocked(true);
+				} else {
+					const errData = await checkRes.json().catch(() => ({}));
+					setError(errData.error || "Invalid password");
+				}
+				return;
+			}
+			
+			// If no password provided, try to get metadata to check if password is required
 			const res = await fetch(`/api/files/download/${fileId}?meta=1`, {
 				method: "GET",
 			});
+			
+			if (res.status === 401) {
+				// File requires password but none was provided
+				setError("Password required");
+				return;
+			}
+			
 			if (!res.ok) {
 				setError("File not found or expired");
 				return;
 			}
+			
 			const meta = await res.json();
 			if (!meta.isPasswordProtected) {
 				setIsUnlocked(true);
 				return;
 			}
-			// Now validate password by calling the download endpoint with password
-			const checkRes = await fetch(`/api/files/download/${fileId}?password=${encodeURIComponent(password)}`, {
-				method: "HEAD"
-			});
-			if (checkRes.ok) {
-				setIsUnlocked(true);
-			} else {
-				const errData = await checkRes.json().catch(() => ({}));
-				setError(errData.error || "Invalid password");
-			}
+			
+			// File is password protected but no password was provided
+			setError("Password required");
 		} catch (e) {
 			setError("Failed to validate password");
 		}
