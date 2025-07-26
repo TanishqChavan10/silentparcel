@@ -57,6 +57,95 @@ async function getAppwriteFileBuffer(filePromise: Promise<any>): Promise<Buffer>
   throw new Error("Unknown file type returned from Appwrite storage");
 }
 
+// Handles HEAD requests for password validation (used by frontend) - NO download count increment
+export async function HEAD(
+  request: NextRequest,
+  { params }: { params: { token: string } }
+) {
+  console.log('Download route: Start HEAD handler for password validation');
+  if (!isProperlyConfigured()) {
+    console.log('Service not properly configured');
+    return NextResponse.json(
+      { error: "Service not properly configured" },
+      { status: 503 }
+    );
+  }
+
+  try {
+    const { token } = params;
+    const { searchParams } = new URL(request.url);
+    const password = searchParams.get("password");
+
+    // Fetch file metadata
+    console.log('Fetching file metadata from database for password validation');
+    const { data: fileRecord, error: supabaseError } = await supabaseAdmin
+      .from("zip_file_metadata")
+      .select("*")
+      .eq("download_token", token)
+      .single();
+
+    if (supabaseError || !fileRecord) {
+      console.log('File not found or expired');
+      return NextResponse.json(
+        { error: "File not found or expired" },
+        { status: 404 }
+      );
+    }
+
+    if (!fileRecord.is_active) {
+      console.log('File has been deleted');
+      return NextResponse.json(
+        { error: "File has been deleted" },
+        { status: 410 }
+      );
+    }
+
+    if (fileRecord.expiry_date && new Date(fileRecord.expiry_date) < new Date()) {
+      console.log('File has expired');
+      return NextResponse.json({ error: "File has expired" }, { status: 410 });
+    }
+
+    if (fileRecord.max_downloads && fileRecord.download_count >= fileRecord.max_downloads) {
+      console.log('Download limit exceeded');
+      return NextResponse.json(
+        { error: "Download limit exceeded" },
+        { status: 410 }
+      );
+    }
+
+    // Validate password if required
+    if (fileRecord.password) {
+      if (!password) {
+        console.log('Password required but not provided');
+        return NextResponse.json(
+          { error: "Password required", requiresPassword: true },
+          { status: 401 }
+        );
+      }
+      const isValidPassword = await verifyPassword(password, fileRecord.password);
+      if (!isValidPassword) {
+        console.log('Invalid password provided');
+        return NextResponse.json(
+          { error: "Invalid password" },
+          { status: 401 }
+        );
+      }
+      console.log('Password validated successfully');
+    }
+
+    // If we reach here, password is valid - return success without incrementing download count
+    console.log('Password validation successful - no download count incremented');
+    return new NextResponse(null, { status: 200 });
+
+  } catch (error) {
+    console.error("Password validation error", error);
+    return NextResponse.json(
+      { error: "Password validation failed. Please try again later or contact support." },
+      { status: 500 }
+    );
+  }
+}
+
 // Handles GET requests for file download
 export async function GET(
   request: NextRequest,
@@ -286,6 +375,7 @@ export async function POST(
       { status: 503 }
     );
   }
+
   try {
     const { token } = params;
     const { searchParams } = new URL(request.url);
