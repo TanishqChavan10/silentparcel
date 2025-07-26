@@ -74,7 +74,7 @@ export async function GET(
     const { token } = params;
     const { searchParams } = new URL(request.url);
     const password = searchParams.get("password");
-    const meta = searchParams.get("meta");
+    const meta = searchParams.get("meta"); // searches word meta from the request url
 
     // Fetch file metadata
     console.log('Fetching file metadata from database');
@@ -115,7 +115,7 @@ export async function GET(
         { status: 410 }
       );
     }
-    if (meta === "1") {
+    if (meta === "1") {  // if url contains meta having value 1 i.e ?meta=1 returns the following
       console.log('Returning file metadata');
       const metadata = {
         id: fileRecord.id,
@@ -126,7 +126,7 @@ export async function GET(
         downloadCount: fileRecord.download_count,
         maxDownloads: fileRecord.max_downloads,
         expiryDate: fileRecord.expiry_date,
-        isPasswordProtected: !!fileRecord.password,
+        isPasswordProtected: !!fileRecord.password,  // this shows password protected or not
         virusScanStatus: fileRecord.virus_scan_status,
         appwrite_id: fileRecord.appwrite_id,
         isActive: fileRecord.is_active
@@ -164,7 +164,7 @@ export async function GET(
     }
     // Download from Appwrite
     console.log('Downloading file from Appwrite');
-    let fileBuffer: Buffer;
+    let fileBuffer;   //   flag let zipBuffer: Buffer;
     let fileDownloadResult = storage.getFileDownload(BUCKETS.FILES, appwriteId);
     if (fileDownloadResult instanceof URL) {
       console.log('Appwrite SDK returned a URL instead of a stream');
@@ -175,11 +175,13 @@ export async function GET(
       return NextResponse.json({ error: "Appwrite SDK did not return a Promise. Please check your SDK version and usage." }, { status: 500 });
     }
     try {
-      fileBuffer = await getAppwriteFileBuffer(fileDownloadResult as Promise<any>);
-      console.log('File downloaded from Appwrite');
+      const encryptedBuffer = await getAppwriteFileBuffer(fileDownloadResult as Promise<any>);
+      const { decryptZipFile } = require('@/lib/security');
+      fileBuffer = decryptZipFile(encryptedBuffer, fileRecord.encrypted_key);
+      console.log('File downloaded and decrypted from Appwrite');
     } catch (err) {
-      console.error("Appwrite file fetch error");
-      return NextResponse.json({ error: "Failed to fetch file from storage. Please try again later or contact support." }, { status: 500 });
+      console.error("Appwrite file fetch or decrypt error");
+      return NextResponse.json({ error: "Failed to fetch or decrypt file from storage. Please try again later or contact support." }, { status: 500 });
     }
     // Update download count
     let shouldDeactivate = false;
@@ -360,7 +362,7 @@ export async function POST(
     }
     // Download the ZIP from Appwrite
     console.log('Downloading ZIP from Appwrite');
-    let zipBuffer: Buffer;
+    let zipBuffer;  //   flag let zipBuffer: Buffer;
     let zipDownloadResult = storage.getFileDownload(BUCKETS.FILES, appwriteId);
     if (zipDownloadResult instanceof URL) {
       console.log('Appwrite SDK returned a URL instead of a stream');
@@ -371,11 +373,13 @@ export async function POST(
       return NextResponse.json({ error: "Appwrite SDK did not return a Promise. Please check your SDK version and usage." }, { status: 500 });
     }
     try {
-      zipBuffer = await getAppwriteFileBuffer(zipDownloadResult as Promise<any>);
-      console.log('Downloaded ZIP from Appwrite');
+      const encryptedBuffer = await getAppwriteFileBuffer(zipDownloadResult as Promise<any>);
+      const { decryptZipFile } = require('@/lib/security');
+      zipBuffer = decryptZipFile(encryptedBuffer, fileRecord.encrypted_key);
+      console.log('Downloaded and decrypted ZIP from Appwrite');
     } catch (err) {
-      console.error("Appwrite file fetch error", err);
-      return NextResponse.json({ error: "Failed to fetch file from storage. Please try again later or contact support." }, { status: 500 });
+      console.error("Appwrite file fetch or decrypt error", err);
+      return NextResponse.json({ error: "Failed to fetch or decrypt file from storage. Please try again later or contact support." }, { status: 500 });
     }
     // Extract only selected files/folders from the ZIP
     let newZipBuffer: Buffer;

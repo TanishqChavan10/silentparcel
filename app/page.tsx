@@ -144,13 +144,13 @@ export default function Home() {
 									Upload file
 								</Button>
 							</Link>
-							<Link href="/rooms">
+							<Link href="/">
 								<Button
 									size={"lg"}
 									className=" bg-muted hover:bg-muted/80 text-foreground rounded-lg font-medium border border-border transition-all duration-200 hover:scale-[1.02]"
 								>
 									<MessageSquare className="mr-2 h-4 w-4" />
-									Create room
+									{/*Create room*/}  Coming Soon
 								</Button>
 							</Link>
 						</div>

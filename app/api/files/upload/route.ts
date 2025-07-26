@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { databases, storage, ID, DATABASE_ID, COLLECTIONS, BUCKETS } from '@/lib/appwrite';
-import { fileUploadRateLimiter } from '@/lib/middleware/rateLimiter';
-import { generateId, generateSecureId, validateFileType, validateFileSize, getClientIP, getAllowedTypes } from '@/lib/security';
+import { BUCKETS } from '@/lib/appwrite';
+import { generateId, generateSecureId, validateFileType, validateFileSize, getClientIP, getAllowedTypes, hashPassword } from '@/lib/security';
 import { supabaseAdmin } from '@/lib/supabase';
-import redis, { REDIS_KEYS, setWithExpiry } from '@/lib/redis';
 import { virusScanner } from '@/lib/virusScanner';
 import { logger } from '@/lib/logger';
 import FormData from 'form-data';
@@ -158,13 +156,17 @@ export async function POST(request: NextRequest) {
     const zipBuffer = zip.toBuffer();
     const zipName = `archive_${Date.now()}.zip`;
 
-    // Upload ZIP to Appwrite
+    // Encrypt the ZIP buffer
+    const { encryptZipFile } = require('@/lib/security');
+    const { encrypted, encryptedKey } = encryptZipFile(zipBuffer);
+
+    // Upload encrypted ZIP to Appwrite
     const fileId = generateId();
     const downloadToken = generateSecureId();
     const editToken = generateSecureId();
     const form = new FormData();
     form.append('fileId', fileId);
-    form.append('file', zipBuffer, { filename: zipName, contentType: 'application/zip' });
+    form.append('file', encrypted, { filename: zipName, contentType: 'application/zip' });
     const res = await fetch(`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${BUCKETS.FILES}/files`, {
       method: 'POST',
       headers: {
@@ -182,28 +184,33 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    let uploadedFile: any = await res.json();
+    let uploadedFile : any = await res.json();
 
     // Calculate expiry
-    const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const expiryDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString();
 
-    // Store file metadata in Supabase, including Appwrite file UID
+    let hashedPassword = null;
+    if (password) {
+      hashedPassword = await hashPassword(password);
+    }
+
+    // Store file metadata in Supabase, including Appwrite file UID and encryptedKey
     const { data: fileRecord, error: fileInsertError } = await supabaseAdmin.from('zip_file_metadata').insert([
       {
         original_name: zipName,
-        size: zipBuffer.length,
+        size: encrypted.length,
         mime_type: 'application/zip',
         download_token: downloadToken,
         edit_token: editToken,
-        password: password || null,
+        password: hashedPassword,
         expiry_date: expiryDate,
         max_downloads: maxDownloads,
         download_count: 0,
         is_active: true,
         uploaded_at: new Date().toISOString(),
         uploaded_by: getClientIP(request),
-        // last_downloaded_at: null,
-        appwrite_id: uploadedFile.$id // Store Appwrite file UID
+        appwrite_id: uploadedFile.$id, // Store Appwrite file UID
+        encrypted_key: encryptedKey // Store encrypted AES key
       }
     ]).select().single();
     if (fileInsertError) {
@@ -244,18 +251,11 @@ export async function POST(request: NextRequest) {
       user_agent: request.headers.get('user-agent'),
       metadata: {
         filename: zipName,
-        size: zipBuffer.length,
+        size: encrypted.length,
         mimeType: 'application/zip',
         subfiles: subfileMetadata.length
       }
     });
-
-    // Store tokens in Redis for quick access
-    await setWithExpiry(
-      REDIS_KEYS.FILE_UPLOAD(downloadToken),
-      JSON.stringify({ fileId, editToken }),
-      24 * 60 * 60 // 24 hours
-    );
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.nextUrl.origin;
     const downloadUrl = `${baseUrl}/files/${downloadToken}`;
