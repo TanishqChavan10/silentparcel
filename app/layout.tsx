@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { ThemeProvider } from "@/providers/theme-provider";
+// import { ThemeProvider } from "@/providers/theme-provider";
+import { ThemeProvider } from "@/contexts/theme-context";
 import localFont from "next/font/local";
 
 // Metadata"
@@ -32,10 +33,8 @@ export default function RootLayout({
 			// className={`${GeneralSans.className}`}
 			>
 				<ThemeProvider
-					attribute="class"
 					defaultTheme="system"
-					enableSystem
-					disableTransitionOnChange
+					storageKey="ui-theme"
 				>
 					{children}
 				</ThemeProvider>

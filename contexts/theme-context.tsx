@@ -28,13 +28,21 @@ export function ThemeProvider({
 	storageKey = "ui-theme",
 	...props
 }: ThemeProviderProps) {
-	const [theme, setTheme] = useState<Theme>(
-		() =>
-			((typeof window !== "undefined" &&
-				localStorage.getItem(storageKey)) as Theme) || defaultTheme
-	);
+	const [theme, setTheme] = useState<Theme>(defaultTheme);
+	const [mounted, setMounted] = useState(false);
+
+	// Only run on client side to prevent hydration mismatch
+	useEffect(() => {
+		setMounted(true);
+		const storedTheme = localStorage.getItem(storageKey) as Theme;
+		if (storedTheme) {
+			setTheme(storedTheme);
+		}
+	}, [storageKey]);
 
 	useEffect(() => {
+		if (!mounted) return;
+
 		const root = window.document.documentElement;
 
 		root.classList.remove("light", "dark");
@@ -46,11 +54,13 @@ export function ThemeProvider({
 				: "light";
 
 			root.classList.add(systemTheme);
+			console.log("Applied system theme:", systemTheme);
 			return;
 		}
 
 		root.classList.add(theme);
-	}, [theme]);
+		console.log("Applied theme:", theme);
+	}, [theme, mounted]);
 
 	const value = {
 		theme,
