@@ -18,7 +18,7 @@ export default function TestThemePage() {
 						<p><strong>Theme:</strong> {theme}</p>
 						<p><strong>Document Classes:</strong> {typeof document !== 'undefined' ? document.documentElement.className : 'system'}</p>
 						<p><strong>Data Theme:</strong> {typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : 'system'}</p>
-						<p><strong>localStorage:</strong> {typeof window !== 'undefined' ? localStorage.getItem('ui-theme') : 'system'}</p>
+						<p><strong>localStorage:</strong> {typeof window !== 'undefined' ? localStorage.getItem('theme') : 'system'}</p>
 					</div>
 				</div>
 

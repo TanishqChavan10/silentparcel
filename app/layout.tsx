@@ -38,7 +38,7 @@ export default function RootLayout({
 			<body className={`${Inter.variable} ${JetbrainsMono.variable}`}>
 				<ThemeProvider
 					defaultTheme="system"
-					storageKey="ui-theme"
+					storageKey="theme"
 				>
 					{children}
 				</ThemeProvider>

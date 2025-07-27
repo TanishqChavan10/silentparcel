@@ -50,7 +50,7 @@ const setStoredTheme = (key: string, theme: Theme): void => {
 export function ThemeProvider({
 	children,
 	defaultTheme = "dark",
-	storageKey = "ui-theme",
+	storageKey = "theme",
 	...props
 }: ThemeProviderProps) {
 	const [theme, setTheme] = useState<Theme>(defaultTheme);
