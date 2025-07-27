@@ -10,6 +10,10 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['ioredis'],
   },
+  // Ensure client-side features work in production
+  compiler: {
+    removeConsole: false, // Keep console logs for debugging
+  },
   webpack: (config, { isServer }) => {
     config.ignoreWarnings = [
       (warning) =>
