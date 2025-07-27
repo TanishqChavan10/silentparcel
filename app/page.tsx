@@ -416,11 +416,11 @@ export default function Home() {
 											</div>
 											<div className="bg-background p-3 rounded-lg border border-border">
 												<div className="text-xs font-mono text-muted-foreground break-all">
-													https://silentparcel.com/f/abc123...
+													https://silentparcel.com/file/abc123...
 												</div>
 											</div>
 											<div className="flex items-center justify-between text-xs text-muted-foreground">
-												<span>Expires in 24 hours</span>
+												<span>Expires in 360 hours</span>
 												<span className="flex items-center space-x-1">
 													<CheckCircle className="h-3 w-3 text-success" />
 													<span>Encrypted</span>

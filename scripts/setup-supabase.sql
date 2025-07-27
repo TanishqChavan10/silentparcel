@@ -79,7 +79,7 @@ COMMENT ON COLUMN public.audit_logs.resource_type IS 'Type of resource (file, ch
 COMMENT ON COLUMN public.audit_logs.resource_id IS 'ID of the resource being acted upon';
 COMMENT ON COLUMN public.audit_logs.user_id IS 'ID of the user performing the action (nullable for anonymous actions)';
 COMMENT ON COLUMN public.audit_logs.ip_address IS 'IP address of the client';
-COMMENT ON COLUMN public.audit_logs.// user_agent IS 'User agent string from the client';
+-- COMMENT ON COLUMN public.audit_logs.user_agent IS 'User agent string from the client';
 COMMENT ON COLUMN public.audit_logs.metadata IS 'Additional metadata about the action in JSON format';
 
 -- Create RLS (Row Level Security) policies if needed

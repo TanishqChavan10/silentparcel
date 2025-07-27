@@ -6,13 +6,13 @@
 * available axes:
 'wght' (range from 300.0 to 900.0
 */
-@font-face {
+/* @font-face {
 	font-family: "Satoshi";
 	src: url("Satoshi-Variable.woff2") format("woff2");
 	font-weight: 300 900;
 	font-display: swap;
 	font-style: normal;
-}
+} */
 /**
 * This is a variable font
 * You can control variable axes as shown below:
@@ -21,13 +21,13 @@
 * available axes:
 'wght' (range from 300.0 to 900.0
 */
-@font-face {
+/* @font-face {
 	font-family: "Satoshi";
 	src: url("Satoshi-VariableItalic.woff2") format("woff2");
 	font-weight: 300 900;
 	font-display: swap;
 	font-style: italic;
-}
+} */
 
 @font-face {
 	font-family: "Jetbrains mono";
