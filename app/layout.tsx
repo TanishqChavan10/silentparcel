@@ -29,6 +29,25 @@ export default function RootLayout({
 }) {
 	return (
 		<html lang="en" suppressHydrationWarning>
+			<head>
+				<script
+					dangerouslySetInnerHTML={{
+						__html: `
+							(function() {
+								try {
+									var theme = localStorage.getItem('ui-theme');
+									var systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+									var finalTheme = theme === 'dark' ? 'dark' : theme === 'light' ? 'light' : systemTheme;
+									document.documentElement.classList.add(finalTheme);
+									document.documentElement.setAttribute('data-theme', finalTheme);
+								} catch (e) {
+									console.warn('Theme initialization failed:', e);
+								}
+							})();
+						`,
+					}}
+				/>
+			</head>
 			<body 
 			// className={`${GeneralSans.className}`}
 			>
