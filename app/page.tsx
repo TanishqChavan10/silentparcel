@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme-toggle";
+import ThemeToggle from "@/components/theme-toggle";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -85,8 +85,8 @@ export default function Home() {
 			ref={containerRef}
 			className="min-h-screen bg-background text-foreground"
 		>
-			<nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-border">
-				<div className="max-w-7xl mx-auto px-8 py-6 flex items-center justify-between">
+			<nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-lg border-b border-border">
+				<div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
 					<div className="flex items-center space-x-3">
 						<div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
 							<Lock className="h-4 w-4 text-primary-foreground" />
@@ -111,12 +111,12 @@ export default function Home() {
 						>
 							Security
 						</a>
+						<ThemeToggle />
 					</div>
-					<ThemeToggle />
 				</div>
 			</nav>
 
-			<main>
+			<main className="">
 				<section className="pt-32 pb-20 px-8">
 					<div className="max-w-4xl mx-auto text-center">
 						<div className="fade-in mb-8">

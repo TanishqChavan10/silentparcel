@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { ThemeToggle } from "@/components/theme-toggle";
+import ThemeToggle from "@/components/theme-toggle";
 import Link from "next/link";
 import { FileDropzone } from "@/components/file-dropzone";
 import { CaptchaModal } from "@/components/captcha-modal";
