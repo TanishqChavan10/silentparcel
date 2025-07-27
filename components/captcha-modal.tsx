@@ -4,8 +4,6 @@ import { useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Shield } from 'lucide-react';
-// @ts-expect-error: No types for react-hcaptcha
-import HCaptcha from 'react-hcaptcha';
 
 interface CaptchaModalProps {
   isOpen: boolean;
@@ -68,7 +66,7 @@ export function CaptchaModal({ isOpen, fileName, fileSize, onComplete, onClose }
             Verify Upload
           </DialogTitle>
           <DialogDescription>
-            Just making sure you're not a robot with unlimited bandwidth.
+            You can abort the upload at any time by clicking anywhere outside the box.
           </DialogDescription>
         </DialogHeader>
 
@@ -80,20 +78,6 @@ export function CaptchaModal({ isOpen, fileName, fileSize, onComplete, onClose }
           </div>
 
           {/* hCaptcha Widget */}
-          <div className="flex flex-col items-center space-y-2">
-            <HCaptcha
-              sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || ''}
-              onVerify={(token : any) => {
-                handleVerify(token).catch(e => {
-                  // This will catch any unhandled promise rejections
-                  console.error('Error in hCaptcha onVerify:', e);
-                });
-              }}
-              ref={hcaptchaRef}
-            />
-            {verifying && <span className="text-xs text-muted-foreground">Verifying...</span>}
-            {error && <span className="text-xs text-red-500">{error}</span>}
-          </div>
 
           <Button 
             onClick={onComplete}

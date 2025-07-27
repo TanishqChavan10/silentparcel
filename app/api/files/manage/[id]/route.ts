@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { storage, BUCKETS } from '@/lib/appwrite';
+import { BUCKETS } from '@/lib/appwrite';
 import { generateId, generateSecureId, getClientIP } from '@/lib/security';
 import AdmZip from 'adm-zip';
 import FormData from 'form-data';
@@ -11,6 +11,26 @@ export const runtime = 'nodejs';
 
 // Handles POST requests to update a zip archive: add, delete, or replace files in the archive
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  // Token authentication logic for JSON requests
+  if (request.headers.get('content-type')?.includes('application/json')) {
+    const { id } = params;
+    const { editToken } = await request.json();
+    if (!editToken) {
+      return NextResponse.json({ valid: false, error: 'Missing edit token' }, { status: 400 });
+    }
+    const { data: fileRecord, error } = await supabaseAdmin
+      .from('zip_file_metadata')
+      .select('edit_token')
+      .eq('download_token', id)
+      .single();
+    if (error || !fileRecord) {
+      return NextResponse.json({ valid: false, error: 'File not found' }, { status: 404 });
+    }
+    if (fileRecord.edit_token !== editToken) {
+      return NextResponse.json({ valid: false, error: 'Invalid edit token' }, { status: 403 });
+    }
+    return NextResponse.json({ valid: true });
+  }
   console.log('File manage route: Start POST handler');
   try {
     const { id } = params;
@@ -59,7 +79,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: 'Failed to fetch current zip from storage' }, { status: 500 });
     }
     const zipBuffer = Buffer.from(await zipRes.arrayBuffer());
-    const zip = new AdmZip(zipBuffer);
+    // Decrypt the zip buffer before using AdmZip
+    const { decryptZipFile } = require('@/lib/security');
+    const decryptedZipBuffer = decryptZipFile(zipBuffer, fileRecord.encrypted_key);
+    const zip = new AdmZip(decryptedZipBuffer);
 
     // Remove files marked for deletion
     if (filesToDelete.length > 0) {
@@ -106,11 +129,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const zipName = `archive_${Date.now()}.zip`;
     const newAppwriteId = generateId();
 
-    // Upload new zip to Appwrite
+    // Encrypt the new ZIP buffer
+    const { encryptZipFile } = require('@/lib/security');
+    const { encrypted, encryptedKey } = encryptZipFile(newZipBuffer);
+
+    // Upload encrypted ZIP to Appwrite
     console.log('Uploading new zip to Appwrite');
     const form = new FormData();
     form.append('fileId', newAppwriteId);
-    form.append('file', newZipBuffer, { filename: zipName, contentType: 'application/zip' });
+    form.append('file', encrypted, { filename: zipName, contentType: 'application/zip' });
     const res = await fetch(`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${BUCKETS.FILES}/files`, {
       method: 'POST',
       headers: {
@@ -126,13 +153,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: 'Appwrite upload failed', details: errText }, { status: 500 });
     }
 
-    // Update zip_file_metadata with new file info
+    // Update zip_file_metadata with new file info and encryptedKey
     console.log('Updating file metadata in database');
     const updateFields = {
       appwrite_id: newAppwriteId,
       uploaded_at: new Date().toISOString(),
       uploaded_by: getClientIP(request),
-      original_name: zipName
+      original_name: zipName,
+      encrypted_key: encryptedKey // Update encrypted AES key
     };
     const { error: updateError } = await supabaseAdmin
       .from('zip_file_metadata')
@@ -194,7 +222,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       resource_type: 'zip',
       resource_id: fileRecord.id,
       ip_address: getClientIP(request),
-      user_agent: request.headers.get('user-agent'),
+      // user_agent: request.headers.get('user-agent'),
       metadata: {
         added: subfileRows.map(f => f.file_path),
         deleted: filesToDelete,
@@ -207,6 +235,71 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.log('Unexpected server error');
+    return NextResponse.json({ error: 'Unexpected server error', details: err.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params;
+    const body = await request.json();
+    const editToken = body.editToken;
+
+    if (!editToken) {
+      return NextResponse.json({ error: 'Missing edit token' }, { status: 400 });
+    }
+
+    // Fetch file record by download_token
+    const { data: fileRecord, error: fetchError } = await supabaseAdmin
+      .from('zip_file_metadata')
+      .select('*')
+      .eq('download_token', id)
+      .single();
+    if (fetchError || !fileRecord) {
+      return NextResponse.json({ error: 'File not found' }, { status: 404 });
+    }
+    if (fileRecord.edit_token !== editToken) {
+      return NextResponse.json({ error: 'Invalid edit token' }, { status: 403 });
+    }
+
+    // Delete from Appwrite
+    try {
+      await fetch(
+        `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${BUCKETS.FILES}/files/${fileRecord.appwrite_id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'X-Appwrite-Project': process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID ?? '',
+            'X-Appwrite-Key': process.env.APPWRITE_API_KEY ?? '',
+          },
+        }
+      );
+    } catch (err) {
+      // Log but continue to delete metadata
+      console.error('Failed to delete file from Appwrite:', err);
+    }
+
+    // Delete from Supabase
+    const { error: supabaseDeleteError } = await supabaseAdmin.from('zip_file_metadata').delete().eq('id', fileRecord.id);
+    if (supabaseDeleteError) {
+      return NextResponse.json({ error: 'Failed to delete file metadata', details: supabaseDeleteError.message }, { status: 500 });
+    }
+
+    // Audit log
+    await supabaseAdmin.from('audit_logs').insert({
+      action: 'file_deleted',
+      resource_type: 'zip',
+      resource_id: fileRecord.id,
+      ip_address: getClientIP(request),
+      // user_agent: request.headers.get('user-agent'),
+      metadata: {
+        filename: fileRecord.original_name,
+        reason: 'user_deleted',
+      }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
     return NextResponse.json({ error: 'Unexpected server error', details: err.message }, { status: 500 });
   }
 } 

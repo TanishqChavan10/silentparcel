@@ -7,14 +7,12 @@ import {
 	Download,
 	Lock,
 	Shield,
-	AlertTriangle,
 	FileText,
 	Archive,
 	Edit,
 	Folder,
 	ChevronDown,
 	ChevronRight,
-	CheckCircle2,
 	XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -142,8 +140,8 @@ export default function FileDownloadPage() {
 	);
 	const [downloading, setDownloading] = useState(false);
 	const [error, setError] = useState("");
-	const [showEditToken, setShowEditToken] = useState(false);
-	const [editToken, setEditToken] = useState("");
+	// const [showEditToken, setShowEditToken] = useState(false);
+	// const [editToken, setEditToken] = useState("");
 	const params = useParams();
 	const [fileExists, setFileExists] = useState(true);
 	const [fileInfo, setFileInfo] = useState<any>(null);
@@ -311,15 +309,68 @@ export default function FileDownloadPage() {
 		const i = Math.floor(Math.log(bytes) / Math.log(k));
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 	}
-	function formatDate(date: string | Date | undefined) {
+	function formatDate(date: string | Date | undefined) {  // gives IST based time
 		if (!date) return "";
 		const d = new Date(date);
-		return d.toLocaleDateString() + " at " + d.toLocaleTimeString();
+		const istOffset = 5.5 * 60; // IST is UTC +5:30 in minutes
+		const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+		const istTime = new Date(utc + istOffset * 60000);
+		return istTime.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) +
+			" at " +
+			istTime.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" });
+	}
+
+	function onlyDate(date: string | Date | undefined) {
+		if (!date) return "";
+		const d = new Date(date);
+		return d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" });
 	}
 
 	const handleUnlock = async () => {
 		setError("");
-		setIsUnlocked(true); // In production, validate password server-side
+		try {
+			// If password is provided, directly validate it without making metadata request
+			if (password) {
+				const checkRes = await fetch(`/api/files/download/${fileId}?password=${encodeURIComponent(password)}`, {
+					method: "HEAD"
+				});
+				
+				if (checkRes.ok) {
+					setIsUnlocked(true);
+				} else {
+					const errData = await checkRes.json().catch(() => ({}));
+					setError(errData.error || "Invalid password");
+				}
+				return;
+			}
+			
+			// If no password provided, try to get metadata to check if password is required
+			const res = await fetch(`/api/files/download/${fileId}?meta=1`, {
+				method: "GET",
+			});
+			
+			if (res.status === 401) {
+				// File requires password but none was provided
+				setError("Password required");
+				return;
+			}
+			
+			if (!res.ok) {
+				setError("File not found or expired");
+				return;
+			}
+			
+			const meta = await res.json();
+			if (!meta.isPasswordProtected) {
+				setIsUnlocked(true);
+				return;
+			}
+			
+			// File is password protected but no password was provided
+			setError("Password required");
+		} catch (e) {
+			setError("Failed to validate password");
+		}
 	};
 
 	const handleDownloadSelected = async () => {
@@ -345,10 +396,10 @@ export default function FileDownloadPage() {
 				return;
 			}
 			const blob = await res.blob();
-			const url = window.URL.createObjectURL(blob);
+			const url = window.URL.createObjectURL(blob); 
 			const a = document.createElement("a");
 			a.href = url;
-			a.download = `${fileInfo?.name.replace(/\.zip$/, "")}_partial.zip`;
+			a.download = `${fileInfo?.name.replace(/\.zip$/, "")}_partial.zip`;  // adds partial in the file name
 			document.body.appendChild(a);
 			a.click();
 			a.remove();
@@ -392,7 +443,7 @@ export default function FileDownloadPage() {
 								<p className="text-muted-foreground text-center">
 									This file doesn't exist or has expired.
 									<br />
-									Files are automatically deleted after 30 days of inactivity.
+									Files are automatically deleted after 15 days.
 								</p>
 								<Link href="/files">
 									<Button className="w-full">Upload New File</Button>
@@ -446,7 +497,7 @@ export default function FileDownloadPage() {
 											{fileInfo?.name}
 										</CardTitle>
 										<p className="text-muted-foreground text-sm">
-											{formatFileSize(fileInfo?.size ?? 0)} &middot; Uploaded{" "}
+											{formatFileSize(fileInfo?.size ?? 0)} &middot; Uploaded{"  "}
 											{formatDate(fileInfo?.uploadDate)}
 										</p>
 									</div>
@@ -458,12 +509,10 @@ export default function FileDownloadPage() {
 											<Shield className="h-3 w-3 mr-1 text-green-600" />
 											Virus Free
 										</Badge>
-										{fileInfo?.isPasswordProtected && (
 											<Badge variant="secondary">
 												<Lock className="h-3 w-3 mr-1" />
 												Protected
 											</Badge>
-										)}
 									</div>
 								</div>
 							</CardHeader>
@@ -679,13 +728,9 @@ export default function FileDownloadPage() {
 					<motion.div variants={subtleMotion}>
 						<div className="text-center space-y-2 mt-6">
 							<p className="text-xs text-muted-foreground">
-								Downloaded {fileInfo?.downloadCount} times &middot; Expires{" "}
-								{formatDate(fileInfo?.expiryDate)}
+								Expires on {" "}
+								{onlyDate(fileInfo?.expiryDate)}
 							</p>
-							<Button variant="link" size="sm" className="text-xs">
-								<AlertTriangle className="h-3 w-3 mr-1" />
-								Report Abuse
-							</Button>
 						</div>
 					</motion.div>
 				</motion.div>

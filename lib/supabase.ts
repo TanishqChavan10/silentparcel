@@ -41,7 +41,7 @@ export interface AuditLog {
   resource_id: string;
   user_id?: string;
   ip_address?: string;
-  user_agent?: string;
+  // user_agent?: string;
   metadata?: Record<string, any>;
   created_at?: string;
 }

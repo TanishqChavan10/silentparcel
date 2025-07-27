@@ -26,9 +26,6 @@ import Link from "next/link";
 import { FileDropzone } from "@/components/file-dropzone";
 import { CaptchaModal } from "@/components/captcha-modal";
 import { LinkResultModal } from "@/components/link-result-modal";
-import { storage, BUCKETS } from "@/lib/appwrite";
-import { ID } from "appwrite";
-import { Readable } from "stream";
 import { AnimatePresence, motion } from "motion/react";
 import { Slider } from "@/components/ui/slider";
 
@@ -47,7 +44,7 @@ interface FileData {
 }
 
 export default function FilesPage() {
-	const router = useRouter();
+	// const router = useRouter();
 	const [stage, setStage] = useState<UploadStage>("select");
 	const [selectedFiles, setSelectedFiles] = useState<FileData[]>([]);
 	const [uploadProgress, setUploadProgress] = useState<number[]>([]);
@@ -111,7 +108,7 @@ export default function FilesPage() {
 		// Add maxDownloads to formData
 		formData.append(
 			"maxDownloads",
-			String(maxDownloadsEnabled ? maxDownloads : 20)
+			String(maxDownloadsEnabled ? maxDownloads : 10)
 		);
 
 		try {
