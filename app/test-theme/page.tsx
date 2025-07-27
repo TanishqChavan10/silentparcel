@@ -2,7 +2,7 @@
 
 import { useTheme } from "@/contexts/theme-context";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme-toggle";
+import ThemeToggle from "@/components/theme-toggle";
 
 export default function TestThemePage() {
 	const { theme, setTheme } = useTheme();
@@ -27,7 +27,6 @@ export default function TestThemePage() {
 					<div className="flex gap-4">
 						<Button onClick={() => setTheme('light')}>Set Light</Button>
 						<Button onClick={() => setTheme('dark')}>Set Dark</Button>
-						<Button onClick={() => setTheme('system')}>Set System</Button>
 						<ThemeToggle />
 					</div>
 				</div>

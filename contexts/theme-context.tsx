@@ -13,11 +13,15 @@ type ThemeProviderProps = {
 type ThemeProviderState = {
 	theme: Theme;
 	setTheme: (theme: Theme) => void;
+	resolvedTheme: "light" | "dark";
+	systemTheme: "light" | "dark";
 };
 
 const initialState: ThemeProviderState = {
 	theme: "system",
 	setTheme: () => null,
+	resolvedTheme: "light",
+	systemTheme: "light",
 };
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
@@ -51,6 +55,7 @@ export function ThemeProvider({
 }: ThemeProviderProps) {
 	const [theme, setTheme] = useState<Theme>(defaultTheme);
 	const [mounted, setMounted] = useState(false);
+	const [systemTheme, setSystemTheme] = useState<"light" | "dark">("dark");
 
 	// Initialize theme on mount
 	useEffect(() => {
@@ -60,6 +65,21 @@ export function ThemeProvider({
 			setTheme(storedTheme);
 		}
 	}, [storageKey]);
+
+	// Track system theme changes
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+
+		const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+		setSystemTheme(mediaQuery.matches ? "dark" : "light");
+
+		const handleChange = (e: MediaQueryListEvent) => {
+			setSystemTheme(e.matches ? "dark" : "light");
+		};
+
+		mediaQuery.addEventListener("change", handleChange);
+		return () => mediaQuery.removeEventListener("change", handleChange);
+	}, []);
 
 	// Apply theme to document
 	useEffect(() => {
@@ -71,9 +91,7 @@ export function ThemeProvider({
 		let themeToApply: "light" | "dark";
 
 		if (theme === "system") {
-			themeToApply = window.matchMedia("(prefers-color-scheme: dark)").matches
-				? "dark"
-				: "light";
+			themeToApply = systemTheme;
 		} else {
 			themeToApply = theme as "light" | "dark";
 		}
@@ -84,7 +102,10 @@ export function ThemeProvider({
 		root.setAttribute("data-theme", themeToApply);
 		
 		console.log("Applied theme:", themeToApply, "from:", theme);
-	}, [theme, mounted]);
+	}, [theme, mounted, systemTheme]);
+
+	// Calculate resolved theme
+	const resolvedTheme = theme === "system" ? systemTheme : theme as "light" | "dark";
 
 	const value = {
 		theme,
@@ -92,6 +113,8 @@ export function ThemeProvider({
 			setStoredTheme(storageKey, newTheme);
 			setTheme(newTheme);
 		},
+		resolvedTheme,
+		systemTheme,
 	};
 
 	return (
