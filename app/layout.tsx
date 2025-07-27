@@ -1,6 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { ThemeProvider } from "@/contexts/theme-context";
+import { ThemeProvider } from "@/providers/theme-provider";
 import localFont from "next/font/local";
 
 export const metadata: Metadata = {
@@ -37,8 +37,10 @@ export default function RootLayout({
 		<html lang="en" suppressHydrationWarning>
 			<body className={`${Inter.variable} ${JetbrainsMono.variable}`}>
 				<ThemeProvider
+					attribute="class"
 					defaultTheme="system"
-					storageKey="theme"
+					enableSystem
+					disableTransitionOnChange
 				>
 					{children}
 				</ThemeProvider>
