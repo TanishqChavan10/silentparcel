@@ -16,9 +16,9 @@ export default function TestThemePage() {
 					<h2 className="text-xl font-semibold">Current Theme State</h2>
 					<div className="p-4 bg-card border rounded-lg">
 						<p><strong>Theme:</strong> {theme}</p>
-						<p><strong>Document Classes:</strong> {typeof document !== 'undefined' ? document.documentElement.className : 'N/A'}</p>
-						<p><strong>Data Theme:</strong> {typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : 'N/A'}</p>
-						<p><strong>localStorage:</strong> {typeof window !== 'undefined' ? localStorage.getItem('ui-theme') : 'N/A'}</p>
+						<p><strong>Document Classes:</strong> {typeof document !== 'undefined' ? document.documentElement.className : 'system'}</p>
+						<p><strong>Data Theme:</strong> {typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : 'system'}</p>
+						<p><strong>localStorage:</strong> {typeof window !== 'undefined' ? localStorage.getItem('ui-theme') : 'system'}</p>
 					</div>
 				</div>
 
