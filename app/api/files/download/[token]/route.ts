@@ -12,10 +12,10 @@ function isProperlyConfigured() {
   return (
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.NEXT_PUBLIC_SUPABASE_URL !==
-      "https://placeholder.supabase.co" &&
+    "https://placeholder.supabase.co" &&
     process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT &&
     process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT !==
-      "https://placeholder.appwrite.io/v1"
+    "https://placeholder.appwrite.io/v1"
   );
 }
 
@@ -106,12 +106,12 @@ async function validateFileAccess(token: string, password?: string | null) {
 async function downloadAndDecryptFile(appwriteId: string, encryptedKey: string) {
   console.log('Downloading file from Appwrite');
   let fileDownloadResult = storage.getFileDownload(BUCKETS.FILES, appwriteId);
-  
+
   if (fileDownloadResult instanceof URL) {
     console.log('Appwrite SDK returned a URL instead of a stream');
     throw new Error("Appwrite SDK is returning a URL instead of a stream. Please use the Node.js SDK/server environment.");
   }
-  
+
   if (!(fileDownloadResult && typeof (fileDownloadResult as any).then === 'function')) {
     console.log('Appwrite SDK did not return a Promise');
     throw new Error("Appwrite SDK did not return a Promise. Please check your SDK version and usage.");
@@ -136,11 +136,11 @@ async function updateDownloadCountAndCleanup(fileRecord: any, request: NextReque
     const newDownloadCount = (fileRecord.download_count || 0) + 1;
     const now = new Date();
     const expiryDate = new Date(fileRecord.expiry_date);
-    
+
     if (newDownloadCount >= fileRecord.max_downloads || now > expiryDate) {
       shouldDeactivate = true;
     }
-    
+
     const { error: updateError } = await supabaseAdmin
       .from("zip_file_metadata")
       .update({
@@ -149,13 +149,13 @@ async function updateDownloadCountAndCleanup(fileRecord: any, request: NextReque
         is_active: !shouldDeactivate
       })
       .eq("id", fileRecord.id);
-      
+
     if (updateError) {
       console.error('Failed to update download count', updateError);
     } else {
       console.log('Download count incremented');
     }
-    
+
     if (shouldDeactivate) {
       try {
         await storage.deleteFile(BUCKETS.FILES, fileRecord.appwrite_id);
@@ -163,7 +163,7 @@ async function updateDownloadCountAndCleanup(fileRecord: any, request: NextReque
           .from("zip_file_metadata")
           .delete()
           .eq("id", fileRecord.id);
-          
+
         if (deleteError) {
           console.error('Failed to delete zip_file_metadata row:', deleteError);
         } else {
@@ -174,7 +174,7 @@ async function updateDownloadCountAndCleanup(fileRecord: any, request: NextReque
           } else if (now > expiryDate) {
             userId = 'time_limit';
           }
-          
+
           await supabaseAdmin.from("audit_logs").insert({
             action: "file_deleted",
             resource_type: "zip",
@@ -222,7 +222,7 @@ async function createAuditLog(action: string, fileRecord: any, request: NextRequ
 // Handles HEAD requests for password validation (used by frontend) - NO download count increment
 export async function HEAD(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  context: { params: Promise<{ token: string }> }
 ) {
   console.log('Download route: Start HEAD handler for password validation');
   if (!isProperlyConfigured()) {
@@ -234,7 +234,7 @@ export async function HEAD(
   }
 
   try {
-    const { token } = params;
+    const { token } = await context.params;
     const { searchParams } = new URL(request.url);
     const password = searchParams.get("password");
 
@@ -258,7 +258,7 @@ export async function HEAD(
 // Handles GET requests for file download
 export async function GET(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  context: { params: Promise<{ token: string }> }
 ) {
   console.log('Download route: Start GET handler');
   if (!isProperlyConfigured()) {
@@ -270,7 +270,7 @@ export async function GET(
   }
 
   try {
-    const { token } = params;
+    const { token } = await context.params;
     const { searchParams } = new URL(request.url);
     const password = searchParams.get("password");
     const meta = searchParams.get("meta");
@@ -328,7 +328,7 @@ export async function GET(
 // Handles POST requests for selective file/folder extraction from ZIP
 export async function POST(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  context: { params: Promise<{ token: string }> }
 ) {
   console.log('POST /files/download/[token] - Start');
   if (!isProperlyConfigured()) {
@@ -340,12 +340,12 @@ export async function POST(
   }
 
   try {
-    const { token } = params;
+    const { token } = await context.params;
     const { searchParams } = new URL(request.url);
     const password = searchParams.get("password");
     const body = await request.json();
     const selectedPaths: string[] = Array.isArray(body.paths) ? body.paths : [];
-    
+
     if (!selectedPaths.length) {
       console.log('No files/folders selected');
       return NextResponse.json({ error: "No files/folders selected" }, { status: 400 });
@@ -371,12 +371,12 @@ export async function POST(
           entry.entryName === sel || entry.entryName.startsWith(sel.endsWith("/") ? sel : sel + "/")
         )
       );
-      
+
       if (!selectedEntries.length) {
         console.log('No matching files/folders in archive');
         return NextResponse.json({ error: "No matching files/folders in archive" }, { status: 404 });
       }
-      
+
       // Create a new ZIP with only selected entries
       const newZip = new AdmZip();
       for (const entry of selectedEntries) {
@@ -386,7 +386,7 @@ export async function POST(
           newZip.addFile(entry.entryName, entry.getData());
         }
       }
-      
+
       newZipBuffer = newZip.toBuffer();
       newZipName =
         selectedEntries.length === 1 && !selectedEntries[0].isDirectory
@@ -406,7 +406,7 @@ export async function POST(
 
     // Return new ZIP
     console.log('Returning new ZIP as download');
-    const response = new NextResponse(newZipBuffer);
+    const response = new NextResponse(new Uint8Array(newZipBuffer));
     response.headers.set("Content-Type", "application/zip");
     response.headers.set(
       "Content-Disposition",
