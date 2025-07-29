@@ -176,9 +176,6 @@ importers:
       formidable:
         specifier: ^3.5.4
         version: 3.5.4
-      framer-motion:
-        specifier: ^12.23.11
-        version: 12.23.11(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       gsap:
         specifier: ^3.13.0
         version: 3.13.0

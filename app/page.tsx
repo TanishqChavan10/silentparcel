@@ -13,6 +13,7 @@ import {
 	ArrowRight,
 	Star,
 	CheckCircle,
+	ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -86,7 +87,7 @@ export default function Home() {
 			className="min-h-screen bg-background text-foreground"
 		>
 			<nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-lg border-b border-border">
-				<div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
+				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
 					<div className="flex items-center space-x-3">
 						<div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
 							<Lock className="h-4 w-4 text-primary-foreground" />
@@ -95,23 +96,89 @@ export default function Home() {
 							SilentParcel
 						</span>
 					</div>
+					{/* Desktop nav */}
 					<div className="hidden md:flex items-center space-x-8 text-base font-medium text-muted-foreground">
-						<a
+						<Link
 							href="#features"
 							className="hover:text-foreground transition-colors"
 						>
 							Features
-						</a>
-						<a href="#how" className="hover:text-foreground transition-colors">
+						</Link>
+						<Link
+							href="#how"
+							className="hover:text-foreground transition-colors"
+						>
 							How it works
-						</a>
-						<a
-							href="#security"
+						</Link>
+						<Link
+							href="/security"
 							className="hover:text-foreground transition-colors"
 						>
 							Security
-						</a>
+						</Link>
 						<ThemeToggle />
+					</div>
+					{/* Mobile nav toggle */}
+					<div className="md:hidden flex items-center">
+						<ThemeToggle />
+						<button
+							type="button"
+							className="ml-2 inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground focus:outline-none"
+							aria-label="Open menu"
+							onClick={() => {
+								const menu = document.getElementById("mobile-menu");
+								if (menu) menu.classList.toggle("hidden");
+							}}
+						>
+							<svg
+								className="h-6 w-6"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth={2}
+								viewBox="0 0 24 24"
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									d="M4 6h16M4 12h16M4 18h16"
+								/>
+							</svg>
+						</button>
+					</div>
+				</div>
+				{/* Mobile menu */}
+				<div id="mobile-menu" className="md:hidden hidden px-4 pb-4">
+					<div className="flex flex-col space-y-2 text-base font-medium text-muted-foreground">
+						<Link
+							href="#features"
+							className="hover:text-foreground transition-colors"
+							onClick={() => {
+								const menu = document.getElementById("mobile-menu");
+								if (menu) menu.classList.add("hidden");
+							}}
+						>
+							Features
+						</Link>
+						<Link
+							href="#how"
+							className="hover:text-foreground transition-colors"
+							onClick={() => {
+								const menu = document.getElementById("mobile-menu");
+								if (menu) menu.classList.add("hidden");
+							}}
+						>
+							How it works
+						</Link>
+						<Link
+							href="/security"
+							className="hover:text-foreground transition-colors"
+							onClick={() => {
+								const menu = document.getElementById("mobile-menu");
+								if (menu) menu.classList.add("hidden");
+							}}
+						>
+							Security
+						</Link>
 					</div>
 				</div>
 			</nav>
@@ -150,13 +217,12 @@ export default function Home() {
 									className=" bg-muted hover:bg-muted/80 text-foreground rounded-lg font-medium border border-border transition-all duration-200 hover:scale-[1.02]"
 								>
 									<MessageSquare className="mr-2 h-4 w-4 " />
-									{/*Create room*/}  Coming Soon
+									{/*Create room*/} Coming Soon
 								</Button>
 							</Link>
 						</div>
 
-						{/* Stats */}
-						<div className="fade-in grid grid-cols-3 gap-8 max-w-lg mx-auto">
+						<div className="fade-in grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 max-w-xs sm:max-w-lg mx-auto">
 							<div className="text-center">
 								<div className="text-2xl font-semibold text-foreground">
 									256-bit
@@ -191,21 +257,20 @@ export default function Home() {
 							</p>
 						</div>
 
-						<div className="bento-grid grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-[200px]">
-							{/* Large feature card */}
-							<div className="bento-card md:col-span-2 lg:col-span-2 md:row-span-2 p-8 bg-background rounded-2xl border border-border hover:border-accent transition-all duration-300 hover:shadow-lg group flex flex-col justify-between">
+						<div className="bento-grid grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-max">
+							<div className="bento-card md:col-span-2 lg:col-span-2 md:row-span-2 p-6 sm:p-8 bg-background rounded-2xl border border-border hover:border-accent transition-all duration-300 hover:shadow-lg group flex flex-col justify-between">
 								<div>
 									<Shield className="h-8 w-8 text-muted-foreground mb-6" />
-									<h3 className="text-2xl font-medium text-foreground mb-4">
+									<h3 className="text-2xl font-medium text-foreground mb-4 break-words">
 										Zero-knowledge encryption
 									</h3>
-									<p className="text-muted-foreground leading-relaxed mb-8">
+									<p className="text-muted-foreground leading-relaxed mb-8 break-words text-base sm:text-lg">
 										Files are encrypted in your browser before upload. We
 										literally cannot see your data, even if we wanted to. Your
 										privacy is mathematically guaranteed.
 									</p>
 								</div>
-								<div className="flex items-center space-x-4 text-sm text-muted-foreground">
+								<div className="hidden md:flex flex-col sm:flex-row flex-wrap items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 text-sm text-muted-foreground">
 									<div className="flex items-center space-x-2">
 										<CheckCircle className="h-4 w-4 text-success" />
 										<span>AES-256</span>
@@ -217,7 +282,6 @@ export default function Home() {
 								</div>
 							</div>
 
-							{/* Speed card */}
 							<div className="bento-card p-6 bg-background rounded-2xl border border-border hover:border-accent transition-all duration-300 hover:shadow-lg flex flex-col">
 								<Zap className="h-6 w-6 text-muted-foreground mb-4" />
 								<h3 className="text-lg font-medium text-foreground mb-2">
@@ -284,7 +348,7 @@ export default function Home() {
 
 							{/* Open source card */}
 							<div className="bento-card p-6 bg-background rounded-2xl border border-border hover:border-accent transition-all duration-300 hover:shadow-lg flex flex-col">
-								<Lock className="h-6 w-6 text-muted-foreground mb-4" />
+								<ShieldCheck className="h-6 w-6 text-muted-foreground mb-4" />
 								<h3 className="text-lg font-medium text-foreground mb-2">
 									Auditable
 								</h3>
@@ -394,7 +458,7 @@ export default function Home() {
 								</div>
 							</div>
 
-							<div className="fade-in">
+							<div className="fade-in max-[476px]:hidden">
 								<div className="bg-muted rounded-2xl p-8 border border-border">
 									<div className="space-y-4">
 										<div className="flex items-center space-x-3">
@@ -542,7 +606,7 @@ export default function Home() {
 				<section className="py-20 px-8">
 					<div className="max-w-4xl mx-auto text-center">
 						<div className="fade-in">
-							<h2 className="text-5xl font-light text-foreground mb-6 leading-tight">
+							<h2 className="text-5xl max-[476px]:text-4xl font-light text-foreground mb-6 leading-tight">
 								Ready to share
 								<br />
 								<span className="font-medium">without compromise?</span>
@@ -559,7 +623,7 @@ export default function Home() {
 										Start sharing securely
 									</Button>
 								</Link>
-								<Link href="/about">
+								<Link href="/about" className="max-[476px]:hidden">
 									<Button className="px-12 py-4 bg-muted hover:bg-muted/80 text-foreground rounded-lg font-medium border border-border transition-all duration-200">
 										Learn about our security
 										<ArrowRight className="ml-2 h-4 w-4" />
@@ -574,8 +638,8 @@ export default function Home() {
 			{/* Footer */}
 			<footer className="py-12 px-8 border-t border-border bg-muted/30">
 				<div className="max-w-7xl mx-auto">
-					<div className="flex flex-col md:flex-row justify-between items-center">
-						<div className="flex items-center space-x-3 mb-4 md:mb-0">
+					<div className="flex flex-col md:flex-row justify-between items-center gap-6 md:gap-0">
+						<div className="flex items-center space-x-3">
 							<div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
 								<Lock className="h-4 w-4 text-primary-foreground" />
 							</div>
@@ -583,31 +647,31 @@ export default function Home() {
 								SilentParcel
 							</span>
 						</div>
-						<div className="flex items-center space-x-8 text-sm text-muted-foreground">
-							<a
+						<div className="flex flex-wrap justify-center items-center gap-x-8 gap-y-3 text-sm text-muted-foreground">
+							<Link
 								href="/privacy"
 								className="hover:text-foreground transition-colors"
 							>
 								Privacy Policy
-							</a>
-							<a
+							</Link>
+							<Link
 								href="/terms"
 								className="hover:text-foreground transition-colors"
 							>
 								Terms
-							</a>
-							<a
+							</Link>
+							<Link
 								href="/security"
 								className="hover:text-foreground transition-colors"
 							>
 								Security
-							</a>
-							<a
+							</Link>
+							<Link
 								href="/opensource"
 								className="hover:text-foreground transition-colors"
 							>
 								Open Source
-							</a>
+							</Link>
 						</div>
 					</div>
 					<div className="mt-8 pt-8 border-t border-border text-center text-sm text-muted-foreground">
