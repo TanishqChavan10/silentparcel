@@ -38,7 +38,7 @@ export default function RootLayout({
 			<body className={`${Inter.variable} ${JetbrainsMono.variable}`}>
 				<ThemeProvider
 					attribute="class"
-					defaultTheme="system"
+					defaultTheme="dark"
 					enableSystem
 					disableTransitionOnChange
 				>

@@ -65,7 +65,6 @@
     "form-data": "^4.0.4",
     "formdata-node": "^6.0.3",
     "formidable": "^3.5.4",
-    "framer-motion": "^12.23.11",
     "gsap": "^3.13.0",
     "helmet": "^7.2.0",
     "input-otp": "^1.4.2",

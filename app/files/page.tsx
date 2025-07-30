@@ -187,14 +187,14 @@ export default function FilesPage() {
 				transition={{ duration: 0.4, ease: "easeOut" }}
 			>
 				<motion.div
-					className="w-full max-w-2xl mx-auto px-2 sm:px-4 py-6"
+					className="w-full max-w-2xl mx-auto px-1 sm:px-4 py-4 sm:py-6"
 					initial={{ opacity: 0, y: 24 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.35, ease: "easeOut" }}
 				>
 					{stage === "select" && (
 						<motion.div
-							className="space-y-8"
+							className="space-y-6 sm:space-y-8"
 							initial={{ opacity: 0, y: 24 }}
 							animate={{ opacity: 1, y: 0 }}
 							exit={{ opacity: 0, y: 24 }}
@@ -202,7 +202,7 @@ export default function FilesPage() {
 						>
 							<div className="text-center">
 								<motion.h1
-									className="text-3xl font-bold mb-1 tracking-tight"
+									className="text-2xl sm:text-3xl font-bold mb-1 tracking-tight"
 									initial={{ opacity: 0, y: 10 }}
 									animate={{ opacity: 1, y: 0 }}
 									transition={{ delay: 0.1, duration: 0.4 }}
@@ -210,7 +210,7 @@ export default function FilesPage() {
 									Upload Files
 								</motion.h1>
 								<motion.p
-									className="text-muted-foreground text-base"
+									className="text-muted-foreground text-sm sm:text-base"
 									initial={{ opacity: 0, y: 10 }}
 									animate={{ opacity: 1, y: 0 }}
 									transition={{ delay: 0.15, duration: 0.4 }}
@@ -232,40 +232,43 @@ export default function FilesPage() {
 							<AnimatePresence>
 								{selectedFiles.length > 0 && (
 									<motion.div
-										initial={{ opacity: 0, y: 20, scale: 0.98 }}
+										initial={{ opacity: 0, y: 40, scale: 0.98 }}
 										animate={{ opacity: 1, y: 0, scale: 1 }}
-										exit={{ opacity: 0, y: 20, scale: 0.98 }}
+										exit={{ opacity: 0, y: 40, scale: 0.98 }}
 										transition={{ duration: 0.35, ease: "easeOut" }}
 									>
-										<Card className="bg-card/70 border-none shadow-md rounded-xl">
+										<Card className="bg-card/90 border-none shadow-xl rounded-xl sm:rounded-2xl py-2 px-2 sm:px-6 sm:py-6">
 											<CardHeader className="pb-2">
-												<CardTitle className="text-base flex items-center gap-2 font-semibold">
+												<CardTitle className="text-base sm:text-lg flex items-center gap-2 font-semibold">
 													<FileText className="h-5 w-5 text-primary" />
 													Selected Files
 												</CardTitle>
 											</CardHeader>
-											<CardContent className="space-y-4 pt-0">
+											<CardContent className="space-y-3 sm:space-y-4 pt-0">
 												<div className="space-y-2">
 													<AnimatePresence>
 														{selectedFiles.map((file, idx) => (
 															<motion.div
 																key={file.name + file.size}
-																className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/40"
+																className="flex items-center justify-between px-2 py-2 rounded-xl bg-muted/60 gap-2 flex-wrap"
 																initial={{ opacity: 0, x: 20 }}
 																animate={{ opacity: 1, x: 0 }}
 																exit={{ opacity: 0, x: -20 }}
 																transition={{ duration: 0.2 }}
 															>
-																<div>
-																	<p className="font-medium truncate max-w-[180px]">
-																		{file.name}
-																	</p>
-																	<p className="text-xs text-muted-foreground">
-																		{formatFileSize(file.size)} &middot;{" "}
-																		{file.type || "Unknown"}
-																	</p>
+																<div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
+																	<FileText className="h-4 w-4 text-primary shrink-0" />
+																	<div className="min-w-0">
+																		<p className="font-medium truncate max-w-[90px] sm:max-w-[180px] text-xs sm:text-sm">
+																			{file.name}
+																		</p>
+																		<p className="text-xs text-muted-foreground truncate">
+																			{formatFileSize(file.size)} &middot;{" "}
+																			{file.type || "Unknown"}
+																		</p>
+																	</div>
 																</div>
-																<div className="flex items-center gap-2">
+																<div className="flex items-center gap-1 sm:gap-2">
 																	<Badge
 																		variant={
 																			file.size > 50 * 1024 * 1024
@@ -309,10 +312,9 @@ export default function FilesPage() {
 													</AnimatePresence>
 												</div>
 
-												{/* Settings - Enhanced UI & Animations */}
 												<motion.div
 													id="settings-section"
-													className="space-y-6 pt-5 border-t border-border/30 rounded-xl"
+													className="space-y-4 sm:space-y-5 pt-3 sm:pt-4 border-t border-border/30 rounded-xl"
 													initial={{ opacity: 0, y: 16, scale: 0.98 }}
 													animate={{ opacity: 1, y: 0, scale: 1 }}
 													transition={{
@@ -322,9 +324,8 @@ export default function FilesPage() {
 														bounce: 0.25,
 													}}
 												>
-													{/* Password Protection */}
 													<motion.div
-														className="flex items-center justify-between gap-4"
+														className="flex sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3"
 														initial={{ opacity: 0, x: 24 }}
 														animate={{ opacity: 1, x: 0 }}
 														transition={{
@@ -333,37 +334,22 @@ export default function FilesPage() {
 															type: "spring",
 														}}
 													>
-														<div>
-															<Label className="flex items-center gap-2 font-semibold text-lg text-primary">
-																<motion.span
-																	initial={{ rotate: -10, scale: 0.8 }}
-																	animate={{ rotate: 0, scale: 1 }}
-																	transition={{
-																		type: "spring",
-																		stiffness: 200,
-																		damping: 10,
-																	}}
-																>
-																	<Lock className="h-5 w-5 text-primary" />
-																</motion.span>
-																Password
-															</Label>
-															<motion.p
-																className="text-xs text-muted-foreground mt-1"
-																initial={{ opacity: 0, y: 8 }}
-																animate={{ opacity: 1, y: 0 }}
-																transition={{ delay: 0.18, duration: 0.3 }}
-															>
-																Require a password to download
-															</motion.p>
+														<div className="flex items-center gap-2">
+															<Lock className="h-5 w-5 text-primary" />
+															<div>
+																<Label className="font-semibold text-base text-primary">
+																	Password
+																</Label>
+																<p className="text-xs text-muted-foreground mt-0.5 hidden min-[350px]:block">
+																	Require password to download
+																</p>
+															</div>
 														</div>
-														<motion.div whileTap={{ scale: 0.88, rotate: 8 }}>
-															<Switch
-																checked={passwordProtected}
-																onCheckedChange={setPasswordProtected}
-																className="data-[state=checked]:ring-2 data-[state=checked]:ring-primary"
-															/>
-														</motion.div>
+														<Switch
+															checked={passwordProtected}
+															onCheckedChange={setPasswordProtected}
+															className="data-[state=checked]:ring-2 data-[state=checked]:ring-primary"
+														/>
 													</motion.div>
 
 													<AnimatePresence>
@@ -377,27 +363,26 @@ export default function FilesPage() {
 																	type: "spring",
 																	bounce: 0.3,
 																}}
-																className="flex items-center gap-2"
+																className="flex items-center gap-2 w-full"
 															>
 																<div className="relative w-full">
 																	<Input
 																		id="password"
 																		type={showPassword ? "text" : "password"}
-																		placeholder="Enter a strong password"
+																		placeholder="Enter password"
 																		value={password}
 																		onChange={(e) =>
 																			setPassword(e.target.value)
 																		}
-																		className="bg-background/70 border-primary/30 focus:ring-2 focus:ring-primary/40 transition-all pr-10 rounded-full"
+																		className="bg-background/80 border-primary/30 focus:ring-2 focus:ring-primary/40 transition-all pr-10 rounded-full text-xs sm:text-sm"
 																	/>
 																	<Button
 																		type="button"
 																		className="absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition rounded-full"
 																		onClick={() => setShowPassword((v) => !v)}
 																		tabIndex={-1}
-                                    size={"icon"}
-                                    variant={"ghost"}
-                                    
+																		size={"icon"}
+																		variant={"ghost"}
 																	>
 																		{showPassword ? (
 																			<Eye className="h-4 w-4" />
@@ -412,7 +397,7 @@ export default function FilesPage() {
 
 													{/* Max Downloads */}
 													<motion.div
-														className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+														className="flex sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3"
 														initial={{ opacity: 0, x: 24 }}
 														animate={{ opacity: 1, x: 0 }}
 														transition={{
@@ -421,37 +406,22 @@ export default function FilesPage() {
 															type: "spring",
 														}}
 													>
-														<div>
-															<Label className="flex items-center gap-2 font-semibold text-lg text-primary">
-																<motion.span
-																	initial={{ scale: 0.8, rotate: 10 }}
-																	animate={{ scale: 1, rotate: 0 }}
-																	transition={{
-																		type: "spring",
-																		stiffness: 200,
-																		damping: 10,
-																	}}
-																>
-																	<Shield className="h-5 w-5 text-primary" />
-																</motion.span>
-																Max Downloads
-															</Label>
-															<motion.p
-																className="text-xs text-muted-foreground mt-1"
-																initial={{ opacity: 0, y: 8 }}
-																animate={{ opacity: 1, y: 0 }}
-																transition={{ delay: 0.22, duration: 0.3 }}
-															>
-																Limit download count (default: 10)
-															</motion.p>
+														<div className="flex items-center gap-2">
+															<Shield className="h-5 w-5 text-primary" />
+															<div>
+																<Label className="font-semibold text-base text-primary">
+																	Max Downloads
+																</Label>
+																<p className="text-xs text-muted-foreground mt-0.5 hidden min-[350px]:block">
+																	Limit download count (default: 10)
+																</p>
+															</div>
 														</div>
-														<motion.div whileTap={{ scale: 0.88, rotate: -8 }}>
-															<Switch
-																checked={maxDownloadsEnabled}
-																onCheckedChange={setMaxDownloadsEnabled}
-																className="data-[state=checked]:ring-2 data-[state=checked]:ring-primary"
-															/>
-														</motion.div>
+														<Switch
+															checked={maxDownloadsEnabled}
+															onCheckedChange={setMaxDownloadsEnabled}
+															className="data-[state=checked]:ring-2 data-[state=checked]:ring-primary"
+														/>
 													</motion.div>
 													<AnimatePresence>
 														{maxDownloadsEnabled && (
@@ -464,30 +434,22 @@ export default function FilesPage() {
 																	type: "spring",
 																	bounce: 0.3,
 																}}
-																className="flex items-center gap-4 pl-1"
+																className="flex items-center gap-2 w-full pl-1"
 															>
-																{/* <Label
-																	htmlFor="max-downloads-slider"
-																	className="text-sm font-medium"
-																>
-																	Count
-																</Label> */}
-																<div className="flex items-center gap-2 w-full">
-																	<Slider
-																		id="max-downloads-slider"
-																		min={1}
-																		max={20}
-																		step={1}
-																		value={maxDownloads}
-																		onValueChange={([val]) =>
-																			setMaxDownloads([val])
-																		}
-																		className="flex-1"
-																	/>
-																	<span className="ml-2 text-base font-semibold w-8 text-center">
-																		{maxDownloads}
-																	</span>
-																</div>
+																<Slider
+																	id="max-downloads-slider"
+																	min={1}
+																	max={20}
+																	step={1}
+																	value={maxDownloads}
+																	onValueChange={([val]) =>
+																		setMaxDownloads([val])
+																	}
+																	className="flex-1"
+																/>
+																<span className="ml-2 text-base font-semibold w-8 text-center">
+																	{maxDownloads}
+																</span>
 															</motion.div>
 														)}
 													</AnimatePresence>
@@ -511,14 +473,14 @@ export default function FilesPage() {
 																	});
 															}, 100);
 														}}
-														className="w-full mt-2 rounded-lg text-base font-semibold py-2 hover:scale-[1.03] transition"
+														className="w-full mt-2 rounded-xl text-base font-semibold py-2 sm:py-3 hover:scale-[1.03] transition"
 														disabled={selectedFiles.some(
 															(file) => file.size > 50 * 1024 * 1024
 														)}
 														asChild
 													>
-														<span>
-															<Upload className="h-4 w-4 mr-2" />
+														<span className="flex items-center justify-center gap-2">
+															<Upload className="h-5 w-5" />
 															Continue
 														</span>
 													</Button>
@@ -531,96 +493,97 @@ export default function FilesPage() {
 						</motion.div>
 					)}
 
-          <AnimatePresence>
-            {stage === "uploading" &&
-              selectedFiles.length > 0 &&
-              !uploadError && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.97, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.97, y: 20 }}
-                  transition={{ duration: 0.35, ease: "easeOut" }}
-                >
-                  <Card className="bg-card/80 border-none shadow-lg rounded-2xl px-4 py-6 sm:px-8 sm:py-8">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-4 text-lg font-bold">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                        <span>
-                          Uploading &amp; Virus Scanning
-                        </span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-8 pt-0">
-                      <div className="flex flex-col gap-5">
-                        {selectedFiles.map((file, idx) => (
-                          <motion.div
-                            key={file.name + file.size}
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            transition={{ duration: 0.2 }}
-                            className="rounded-lg bg-muted/30 px-5 py-4 shadow-sm"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-3">
-                                <FileText className="h-4 w-4 text-primary" />
-                                <span className="font-semibold truncate max-w-[180px]">
-                                  {file.name}
-                                </span>
-                              </div>
-                              <span className="text-xs text-muted-foreground font-medium">
-                                {Math.round(uploadProgress[idx] || 0)}%
-                              </span>
-                            </div>
-                            <Progress
-                              value={uploadProgress[idx] || 0}
-                              className="h-2 rounded-full bg-background/60"
-                            />
-                            <div className="flex items-center gap-2 mt-3 text-xs">
-                              <Shield className="h-4 w-4 text-primary" />
-                              {virusScanStatus[idx] === "scanning" && (
-                                <motion.span
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  className="text-muted-foreground flex items-center gap-1"
-                                >
-                                  <span className="animate-pulse">Scanning for viruses...</span>
-                                </motion.span>
-                              )}
-                              {virusScanStatus[idx] === "clean" && (
-                                <motion.span
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  className="text-green-600 flex items-center gap-1 font-semibold"
-                                >
-                                  <Check className="h-4 w-4" />
-                                  Clean
-                                </motion.span>
-                              )}
-                              {virusScanStatus[idx] === "infected" && (
-                                <motion.span
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  className="text-red-600 flex items-center gap-1 font-semibold"
-                                >
-                                  <AlertTriangle className="h-4 w-4" />
-                                  Virus detected
-                                </motion.span>
-                              )}
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                      <div className="flex justify-center mt-6">
-                        <span className="text-sm text-muted-foreground">
-                          Please keep this page open until upload &amp; scan completes.
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )}
-          </AnimatePresence>
+					<AnimatePresence>
+						{stage === "uploading" &&
+							selectedFiles.length > 0 &&
+							!uploadError && (
+								<motion.div
+									initial={{ opacity: 0, scale: 0.97, y: 20 }}
+									animate={{ opacity: 1, scale: 1, y: 0 }}
+									exit={{ opacity: 0, scale: 0.97, y: 20 }}
+									transition={{ duration: 0.35, ease: "easeOut" }}
+								>
+									<Card className="bg-card/80 border-none shadow-lg rounded-xl sm:rounded-2xl px-2 py-4 sm:px-8 sm:py-8">
+										<CardHeader className="pb-3">
+											<CardTitle className="flex items-center gap-3 sm:gap-4 text-base sm:text-lg font-bold">
+												<Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin text-primary" />
+												<span>Uploading &amp; Virus Scanning</span>
+											</CardTitle>
+										</CardHeader>
+										<CardContent className="space-y-5 sm:space-y-8 pt-0">
+											<div className="flex flex-col gap-3 sm:gap-5">
+												{selectedFiles.map((file, idx) => (
+													<motion.div
+														key={file.name + file.size}
+														initial={{ opacity: 0, x: 20 }}
+														animate={{ opacity: 1, x: 0 }}
+														exit={{ opacity: 0, x: -20 }}
+														transition={{ duration: 0.2 }}
+														className="rounded-lg bg-muted/30 px-3 py-3 sm:px-5 sm:py-4 shadow-sm"
+													>
+														<div className="flex items-center justify-between mb-2">
+															<div className="flex items-center gap-2 sm:gap-3">
+																<FileText className="h-4 w-4 text-primary" />
+																<span className="font-semibold truncate max-w-[120px] sm:max-w-[180px] text-xs sm:text-base">
+																	{file.name}
+																</span>
+															</div>
+															<span className="text-xs text-muted-foreground font-medium">
+																{Math.round(uploadProgress[idx] || 0)}%
+															</span>
+														</div>
+														<Progress
+															value={uploadProgress[idx] || 0}
+															className="h-2 rounded-full bg-background/60"
+														/>
+														<div className="flex items-center gap-2 mt-2 sm:mt-3 text-xs">
+															<Shield className="h-4 w-4 text-primary" />
+															{virusScanStatus[idx] === "scanning" && (
+																<motion.span
+																	initial={{ opacity: 0 }}
+																	animate={{ opacity: 1 }}
+																	className="text-muted-foreground flex items-center gap-1"
+																>
+																	<span className="animate-pulse">
+																		Scanning for viruses...
+																	</span>
+																</motion.span>
+															)}
+															{virusScanStatus[idx] === "clean" && (
+																<motion.span
+																	initial={{ opacity: 0 }}
+																	animate={{ opacity: 1 }}
+																	className="text-green-600 flex items-center gap-1 font-semibold"
+																>
+																	<Check className="h-4 w-4" />
+																	Clean
+																</motion.span>
+															)}
+															{virusScanStatus[idx] === "infected" && (
+																<motion.span
+																	initial={{ opacity: 0 }}
+																	animate={{ opacity: 1 }}
+																	className="text-red-600 flex items-center gap-1 font-semibold"
+																>
+																	<AlertTriangle className="h-4 w-4" />
+																	Virus detected
+																</motion.span>
+															)}
+														</div>
+													</motion.div>
+												))}
+											</div>
+											<div className="flex justify-center mt-4 sm:mt-6">
+												<span className="text-xs sm:text-sm text-muted-foreground text-center">
+													Please keep this page open until upload &amp; scan
+													completes.
+												</span>
+											</div>
+										</CardContent>
+									</Card>
+								</motion.div>
+							)}
+					</AnimatePresence>
 
 					<AnimatePresence>
 						{stage === "virus-error" && uploadError && (
@@ -630,16 +593,16 @@ export default function FilesPage() {
 								exit={{ opacity: 0, scale: 0.97, y: 20 }}
 								transition={{ duration: 0.35, ease: "easeOut" }}
 							>
-								<Card className="bg-card/70 border-none shadow-md rounded-xl">
+								<Card className="bg-card/70 border-none shadow-md rounded-lg sm:rounded-xl">
 									<CardHeader>
-										<CardTitle className="flex items-center gap-2 text-red-600 font-semibold">
+										<CardTitle className="flex items-center gap-2 text-red-600 font-semibold text-base sm:text-lg">
 											<AlertTriangle className="h-5 w-5" />
 											Error
 										</CardTitle>
 									</CardHeader>
-									<CardContent className="space-y-4">
+									<CardContent className="space-y-3 sm:space-y-4">
 										<motion.div
-											className="text-center text-red-600 font-medium"
+											className="text-center text-red-600 font-medium text-sm sm:text-base"
 											initial={{ opacity: 0, y: 10 }}
 											animate={{ opacity: 1, y: 0 }}
 											transition={{ duration: 0.2 }}
