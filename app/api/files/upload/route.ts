@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
     const uploadedFile = uploadResult.uploadedFile;
 
     // Calculate expiry
-    const expiryDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString();
+    const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();  // 7 days for expiration
 
     let hashedPassword = null;
     if (password) {
