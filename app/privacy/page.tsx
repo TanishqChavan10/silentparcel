@@ -299,7 +299,7 @@ export default function PrivacyPage() {
 							<CardContent>
 								<p className="text-sm text-muted-foreground">
 									Files are automatically deleted after download or when they
-									expire (default: 15 days). No exceptions.
+									expire (default: 07 days). No exceptions.
 								</p>
 							</CardContent>
 						</Card>

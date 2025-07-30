@@ -654,7 +654,7 @@ export default function Home() {
 												</div>
 											</div>
 											<div className="flex items-center justify-between text-xs text-muted-foreground">
-												<span>Expires in 360 hours</span>
+												<span>Valid for over 150+ hours  </span>
 												<span className="flex items-center space-x-1">
 													<CheckCircle className="h-3 w-3 text-success" />
 													<span>Encrypted</span>

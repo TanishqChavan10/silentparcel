@@ -477,7 +477,7 @@ export default function FileDownloadPage() {
 								<p className="text-muted-foreground text-center">
 									This file doesn't exist or has expired.
 									<br />
-									Files are automatically deleted after 15 days.
+									Files are automatically deleted after 07 days.
 								</p>
 								<Link href="/files">
 									<Button className="w-full">Upload New File</Button>

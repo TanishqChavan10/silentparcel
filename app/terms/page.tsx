@@ -245,7 +245,7 @@ export default function TermsPage() {
 									<h4 className="font-semibold mb-2">File Retention</h4>
 									<ul className="space-y-1 text-sm text-muted-foreground">
 										<li>• Files are automatically deleted after download or expiry</li>
-										<li>• Default expiry: 15 days from upload</li>
+										<li>• Default expiry: 07 days from upload</li>
 										<li>• No long-term storage or backup</li>
 									</ul>
 								</div>
