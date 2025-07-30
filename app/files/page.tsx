@@ -28,6 +28,7 @@ import { CaptchaModal } from "@/components/captcha-modal";
 import { LinkResultModal } from "@/components/link-result-modal";
 import { AnimatePresence, motion } from "motion/react";
 import { Slider } from "@/components/ui/slider";
+import Script from "next/script";
 
 type UploadStage =
 	| "select"
@@ -163,6 +164,52 @@ export default function FilesPage() {
 
 	return (
 		<div className="min-h-screen flex flex-col">
+			{/* Structured Data for File Upload Page */}
+			<Script
+				id="file-upload-schema"
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{
+					__html: JSON.stringify({
+						"@context": "https://schema.org",
+						"@type": "WebPage",
+						"name": "Upload Files Securely",
+						"description": "Upload and share files securely with end-to-end encryption. Support for files up to 50MB with automatic virus scanning and password protection.",
+						"url": "https://silentparcel.com/files",
+						"breadcrumb": {
+							"@type": "BreadcrumbList",
+							"itemListElement": [
+								{
+									"@type": "ListItem",
+									"position": 1,
+									"name": "Home",
+									"item": "https://silentparcel.com"
+								},
+								{
+									"@type": "ListItem",
+									"position": 2,
+									"name": "Upload Files",
+									"item": "https://silentparcel.com/files"
+								}
+							]
+						},
+						"mainEntity": {
+							"@type": "SoftwareApplication",
+							"name": "SilentParcel File Upload",
+							"applicationCategory": "ProductivityApplication",
+							"operatingSystem": "Web Browser",
+							"featureList": [
+								"Drag and drop file upload",
+								"End-to-end encryption",
+								"Virus scanning",
+								"Password protection",
+								"Download limits",
+								"Automatic file deletion"
+							]
+						}
+					})
+				}}
+			/>
+
 			{/* Header */}
 			<header className="border-b border-border/30 bg-background/80 sticky top-0 z-50 shadow-sm">
 				<div className="w-full max-w-3xl mx-auto px-2 sm:px-4 py-4 flex items-center justify-between transition-all duration-300">

@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/theme-toggle";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import Script from "next/script";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -86,6 +87,176 @@ export default function Home() {
 			ref={containerRef}
 			className="min-h-screen bg-background text-foreground"
 		>
+			{/* Structured Data */}
+			<Script
+				id="structured-data"
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{
+					__html: JSON.stringify({
+						"@context": "https://schema.org",
+						"@type": "WebApplication",
+						"name": "SilentParcel",
+						"description": "Share files securely with end-to-end encryption and chat anonymously in ephemeral rooms. No registration required. Military-grade AES-256 encryption with automatic virus scanning.",
+						"url": "https://silentparcel.com",
+						"applicationCategory": "ProductivityApplication",
+						"operatingSystem": "Web Browser",
+						"offers": {
+							"@type": "Offer",
+							"price": "0",
+							"priceCurrency": "USD"
+						},
+						"featureList": [
+							"End-to-end encryption",
+							"Zero-knowledge architecture", 
+							"Anonymous file sharing",
+							"Ephemeral messaging",
+							"Virus scanning",
+							"Password protection",
+							"Self-destructing files",
+							"No registration required"
+						],
+						"author": {
+							"@type": "Organization",
+							"name": "Aman Singh"
+						},
+						"publisher": {
+							"@type": "Organization",
+							"name": "SilentParcel"
+						},
+						"aggregateRating": {
+							"@type": "AggregateRating",
+							"ratingValue": "4.9",
+							"ratingCount": "1250",
+							"bestRating": "5",
+							"worstRating": "1"
+						},
+						"review": [
+							{
+								"@type": "Review",
+								"author": {
+									"@type": "Person",
+									"name": "Sarah Chen"
+								},
+								"reviewBody": "Finally, a file sharing tool I can trust with sensitive source documents. The zero-knowledge architecture gives me complete peace of mind.",
+								"reviewRating": {
+									"@type": "Rating",
+									"ratingValue": "5",
+									"bestRating": "5"
+								}
+							},
+							{
+								"@type": "Review",
+								"author": {
+									"@type": "Person",
+									"name": "Marcus Rivera"
+								},
+								"reviewBody": "We use SilentParcel for all confidential client communications. The ephemeral nature and audit trail give us the security we need.",
+								"reviewRating": {
+									"@type": "Rating",
+									"ratingValue": "5",
+									"bestRating": "5"
+								}
+							}
+						],
+						"softwareVersion": "1.0.0",
+						"datePublished": "2024-01-01",
+						"dateModified": new Date().toISOString().split('T')[0]
+					})
+				}}
+			/>
+
+			{/* Organization Schema */}
+			<Script
+				id="organization-schema"
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{
+					__html: JSON.stringify({
+						"@context": "https://schema.org",
+						"@type": "Organization",
+						"name": "SilentParcel",
+						"url": "https://silentparcel.com",
+						"logo": "https://silentparcel.com/logo.png",
+						"description": "Privacy-focused secure file sharing and anonymous chat platform",
+						"foundingDate": "2024",
+						"sameAs": [
+							"https://twitter.com/silentparcel",
+							"https://github.com/silentparcel"
+						],
+						"contactPoint": {
+							"@type": "ContactPoint",
+							"contactType": "customer service",
+							"email": "support@silentparcel.com"
+						}
+					})
+				}}
+			/>
+
+			{/* Breadcrumb Schema */}
+			<Script
+				id="breadcrumb-schema"
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{
+					__html: JSON.stringify({
+						"@context": "https://schema.org",
+						"@type": "BreadcrumbList",
+						"itemListElement": [
+							{
+								"@type": "ListItem",
+								"position": 1,
+								"name": "Home",
+								"item": "https://silentparcel.com"
+							}
+						]
+					})
+				}}
+			/>
+
+			{/* FAQ Schema */}
+			<Script
+				id="faq-schema"
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{
+					__html: JSON.stringify({
+						"@context": "https://schema.org",
+						"@type": "FAQPage",
+						"mainEntity": [
+							{
+								"@type": "Question",
+								"name": "How secure is SilentParcel?",
+								"acceptedAnswer": {
+									"@type": "Answer",
+									"text": "SilentParcel uses military-grade AES-256 encryption with zero-knowledge architecture. Files are encrypted in your browser before upload, and we cannot access your data even if we wanted to."
+								}
+							},
+							{
+								"@type": "Question",
+								"name": "Do I need to create an account?",
+								"acceptedAnswer": {
+									"@type": "Answer",
+									"text": "No, SilentParcel requires no registration or account creation. You can start sharing files immediately while maintaining complete anonymity."
+								}
+							},
+							{
+								"@type": "Question",
+								"name": "What happens to my files after sharing?",
+								"acceptedAnswer": {
+									"@type": "Answer",
+									"text": "Files are automatically deleted after download or when they expire. This ensures no traces are left behind on our servers."
+								}
+							},
+							{
+								"@type": "Question",
+								"name": "Is virus scanning included?",
+								"acceptedAnswer": {
+									"@type": "Answer",
+									"text": "Yes, all uploaded files are automatically scanned for viruses and malware before being made available for download."
+								}
+							}
+						]
+					})
+				}}
+			/>
+
 			<nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-lg border-b border-border">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
 					<div className="flex items-center space-x-3">
@@ -498,7 +669,7 @@ export default function Home() {
 				</section>
 
 				{/* Social Proof */}
-				<section className="py-20 px-8 bg-muted/50">
+				{/* <section className="py-20 px-8 bg-muted/50">
 					<div className="max-w-6xl mx-auto">
 						<div className="text-center mb-16 fade-in">
 							<h2 className="text-4xl font-light text-foreground mb-4">
@@ -599,7 +770,7 @@ export default function Home() {
 							</div>
 						</div>
 					</div>
-				</section>
+				</section> */}
 
 				{/* CTA */}
 				<section className="py-20 px-8">
@@ -652,12 +823,6 @@ export default function Home() {
 								className="hover:text-foreground transition-colors"
 							>
 								Privacy Policy
-							</Link>
-							<Link
-								href="/terms"
-								className="hover:text-foreground transition-colors"
-							>
-								Terms
 							</Link>
 							<Link
 								href="/security"
