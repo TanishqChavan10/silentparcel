@@ -146,7 +146,6 @@ export default function Home() {
 						</button>
 					</div>
 				</div>
-				{/* Mobile menu */}
 				<div id="mobile-menu" className="md:hidden hidden px-4 pb-4">
 					<div className="flex flex-col space-y-2 text-base font-medium text-muted-foreground">
 						<Link
