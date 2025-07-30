@@ -112,7 +112,7 @@ export default function RootLayout({
 				{/* Google Analytics */}
 				{/* for domain analytics */}
 				<Script
-					src="https://www.googletagmanager.com/gtag/js?id=G-SZQN6WHY8P"
+					src="https://www.googletagmanager.com/gtag/js?id=G-B8B9Y2S6C3"
 					strategy="afterInteractive"
 				/>
 				<Script id="google-analytics" strategy="afterInteractive">
@@ -120,18 +120,18 @@ export default function RootLayout({
 						window.dataLayer = window.dataLayer || [];
 						function gtag(){dataLayer.push(arguments);}
 						gtag('js', new Date());
-						gtag('config', 'G-SZQN6WHY8P');
+						gtag('config', 'G-B8B9Y2S6C3');
 					`}
 				</Script>
 
 					{/* for vercel analytics */}
-				<Script src="https://www.googletagmanager.com/gtag/js?id=G-BL96B7HFD4" strategy="afterInteractive" />
+				<Script src="https://www.googletagmanager.com/gtag/js?id=G-PMRFNG45RF" strategy="afterInteractive" />
 				<Script id="google-analytics" strategy="afterInteractive">
 					{`window.dataLayer = window.dataLayer || [];
 					function gtag(){dataLayer.push(arguments);}
 					gtag('js', new Date());
 
-					gtag('config', 'G-BL96B7HFD4');`}
+					gtag('config', 'G-PMRFNG45RF');`}
 				</Script>
 			</head>
 			<body className={`${Inter.variable} ${JetbrainsMono.variable}`}>
