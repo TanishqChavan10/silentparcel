@@ -9,8 +9,7 @@ const nextConfig = {
 		formats: ["image/webp", "image/avif"],
 	},
 
-  serverExternalPackages: ["ioredis"],
-
+	serverExternalPackages: ["ioredis"],
 
 	compiler: {
 		removeConsole: false,
@@ -49,11 +48,82 @@ const nextConfig = {
 					{ key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
 				],
 			},
+			{
+				source: "/(.*)",
+				headers: [
+					// Security Headers
+					{ key: "X-Content-Type-Options", value: "nosniff" },
+					{ key: "X-Frame-Options", value: "DENY" },
+					{ key: "X-XSS-Protection", value: "1; mode=block" },
+					{ key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+					{ key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+					
+					// SEO Headers
+					{ key: "X-Robots-Tag", value: "index, follow" },
+					
+					// Performance Headers
+					{ key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+				],
+			},
+			{
+				source: "/robots.txt",
+				headers: [
+					{ key: "Content-Type", value: "text/plain" },
+					{ key: "Cache-Control", value: "public, max-age=86400" },
+				],
+			},
+			{
+				source: "/sitemap.xml",
+				headers: [
+					{ key: "Content-Type", value: "application/xml" },
+					{ key: "Cache-Control", value: "public, max-age=3600" },
+				],
+			},
+			{
+				source: "/manifest.json",
+				headers: [
+					{ key: "Content-Type", value: "application/manifest+json" },
+					{ key: "Cache-Control", value: "public, max-age=86400" },
+				],
+			},
 		];
 	},
 
+	// SEO and Performance Optimizations
 	poweredByHeader: false,
 	compress: true,
+	
+	// Enable experimental features for better performance
+	experimental: {
+		optimizeCss: true,
+		optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+	},
+	
+	// Redirects for SEO
+	async redirects() {
+		return [
+			{
+				source: '/home',
+				destination: '/',
+				permanent: true,
+			},
+			{
+				source: '/index.html',
+				destination: '/',
+				permanent: true,
+			},
+		];
+	},
+	
+	// Rewrites for clean URLs
+	async rewrites() {
+		return [
+			{
+				source: '/sitemap.xml',
+				destination: '/api/sitemap',
+			},
+		];
+	},
 };
 
 module.exports = nextConfig;
