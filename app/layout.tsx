@@ -110,6 +110,7 @@ export default function RootLayout({
 		<html lang="en" suppressHydrationWarning>
 			<head>
 				{/* Google Analytics */}
+				{/* for domain analytics */}
 				<Script
 					src="https://www.googletagmanager.com/gtag/js?id=G-SZQN6WHY8P"
 					strategy="afterInteractive"
@@ -121,6 +122,16 @@ export default function RootLayout({
 						gtag('js', new Date());
 						gtag('config', 'G-SZQN6WHY8P');
 					`}
+				</Script>
+
+					{/* for vercel analytics */}
+				<Script src="https://www.googletagmanager.com/gtag/js?id=G-BL96B7HFD4" strategy="afterInteractive" />
+				<Script id="google-analytics" strategy="afterInteractive">
+					{`window.dataLayer = window.dataLayer || [];
+					function gtag(){dataLayer.push(arguments);}
+					gtag('js', new Date());
+
+					gtag('config', 'G-BL96B7HFD4');`}
 				</Script>
 			</head>
 			<body className={`${Inter.variable} ${JetbrainsMono.variable}`}>
