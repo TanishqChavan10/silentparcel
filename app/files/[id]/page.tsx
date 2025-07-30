@@ -14,6 +14,7 @@ import {
 	ChevronDown,
 	ChevronRight,
 	XCircle,
+	LoaderCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -115,6 +116,7 @@ function TreeCheckbox({
 }
 
 import { easeInOut, easeIn } from "motion";
+import FilesSkeleton from "@/components/files-skeleton";
 
 const fadeIn = {
 	hidden: { opacity: 0, y: 16 },
@@ -210,7 +212,7 @@ export default function FileDownloadPage() {
 				<motion.div
 					key={node.path}
 					style={{ marginLeft: depth * 16 }}
-					className="group flex items-center py-1 hover:bg-accent/30 rounded transition"
+					className="group flex flex-col xs:flex-row items-start xs:items-center py-1 hover:bg-accent/30 rounded transition"
 					initial="hidden"
 					animate="visible"
 					exit="exit"
@@ -218,55 +220,59 @@ export default function FileDownloadPage() {
 				>
 					{node.isFolder ? (
 						<>
-							<button
-								type="button"
-								onClick={() => toggleFolder(node.path)}
-								className="mr-1 focus:outline-none"
-								aria-label={isExpanded ? "Collapse folder" : "Expand folder"}
-							>
-								{isExpanded ? (
-									<ChevronDown className="h-4 w-4 text-muted-foreground" />
-								) : (
-									<ChevronRight className="h-4 w-4 text-muted-foreground" />
-								)}
-							</button>
-							<TreeCheckbox
-								checked={checked}
-								indeterminate={indeterminate}
-								onChange={() =>
-									handleSelect(node.path, node.isFolder, node.children)
-								}
-								id={node.path}
-							/>
-							<Folder className="h-4 w-4 text-primary ml-2" />
-							<label
-								htmlFor={node.path}
-								className="ml-2 text-sm cursor-pointer select-none font-medium"
-							>
-								{node.name}
-							</label>
+							<div className="flex items-center w-full">
+								<button
+									type="button"
+									onClick={() => toggleFolder(node.path)}
+									className="mr-1 focus:outline-none"
+									aria-label={isExpanded ? "Collapse folder" : "Expand folder"}
+								>
+									{isExpanded ? (
+										<ChevronDown className="h-4 w-4 text-muted-foreground" />
+									) : (
+										<ChevronRight className="h-4 w-4 text-muted-foreground" />
+									)}
+								</button>
+								<TreeCheckbox
+									checked={checked}
+									indeterminate={indeterminate}
+									onChange={() =>
+										handleSelect(node.path, node.isFolder, node.children)
+									}
+									id={node.path}
+								/>
+								<Folder className="h-4 w-4 text-primary ml-2" />
+								<label
+									htmlFor={node.path}
+									className="ml-2 text-sm cursor-pointer select-none font-medium truncate max-w-[120px] xs:max-w-none"
+								>
+									{node.name}
+								</label>
+							</div>
 						</>
 					) : (
 						<>
-							<span style={{ width: 32, display: "inline-block" }} />
-							<TreeCheckbox
-								checked={checked}
-								indeterminate={false}
-								onChange={() => handleSelect(node.path, false)}
-								id={node.path}
-							/>
-							<FileText className="h-4 w-4 text-muted-foreground ml-2" />
-							<label
-								htmlFor={node.path}
-								className="ml-2 text-sm cursor-pointer select-none"
-							>
-								{node.name}
-							</label>
-							{node.file && (
-								<span className="ml-2 text-xs text-muted-foreground">
-									{formatFileSize(node.file.size)}
-								</span>
-							)}
+							<div className="flex items-center w-full">
+								<span style={{ width: 32, display: "inline-block" }} />
+								<TreeCheckbox
+									checked={checked}
+									indeterminate={false}
+									onChange={() => handleSelect(node.path, false)}
+									id={node.path}
+								/>
+								<FileText className="h-4 w-4 text-muted-foreground ml-2" />
+								<label
+									htmlFor={node.path}
+									className="ml-2 text-sm cursor-pointer select-none truncate max-w-[120px] xs:max-w-none"
+								>
+									{node.name}
+								</label>
+								{node.file && (
+									<span className="ml-2 text-xs text-muted-foreground truncate max-w-[80px] xs:max-w-none">
+										{formatFileSize(node.file.size)}
+									</span>
+								)}
+							</div>
 						</>
 					)}
 					<AnimatePresence>
@@ -282,6 +288,26 @@ export default function FileDownloadPage() {
 							</motion.div>
 						)}
 					</AnimatePresence>
+					<style jsx>{`
+						@media (max-width: 475px) {
+							.group {
+								flex-direction: column !important;
+								align-items: flex-start !important;
+							}
+							.group label {
+								max-width: 120px;
+								overflow: hidden;
+								text-overflow: ellipsis;
+								white-space: nowrap;
+							}
+							.group span.text-xs {
+								max-width: 80px;
+								overflow: hidden;
+								text-overflow: ellipsis;
+								white-space: nowrap;
+							}
+						}
+					`}</style>
 				</motion.div>
 			);
 		});
@@ -309,15 +335,18 @@ export default function FileDownloadPage() {
 		const i = Math.floor(Math.log(bytes) / Math.log(k));
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 	}
-	function formatDate(date: string | Date | undefined) {  // gives IST based time
+	function formatDate(date: string | Date | undefined) {
+		// gives IST based time
 		if (!date) return "";
 		const d = new Date(date);
 		const istOffset = 5.5 * 60; // IST is UTC +5:30 in minutes
 		const utc = d.getTime() + d.getTimezoneOffset() * 60000;
 		const istTime = new Date(utc + istOffset * 60000);
-		return istTime.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) +
+		return (
+			istTime.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) +
 			" at " +
-			istTime.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" });
+			istTime.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" })
+		);
 	}
 
 	function onlyDate(date: string | Date | undefined) {
@@ -331,10 +360,15 @@ export default function FileDownloadPage() {
 		try {
 			// If password is provided, directly validate it without making metadata request
 			if (password) {
-				const checkRes = await fetch(`/api/files/download/${fileId}?password=${encodeURIComponent(password)}`, {
-					method: "HEAD"
-				});
-				
+				const checkRes = await fetch(
+					`/api/files/download/${fileId}?password=${encodeURIComponent(
+						password
+					)}`,
+					{
+						method: "HEAD",
+					}
+				);
+
 				if (checkRes.ok) {
 					setIsUnlocked(true);
 				} else {
@@ -343,29 +377,29 @@ export default function FileDownloadPage() {
 				}
 				return;
 			}
-			
+
 			// If no password provided, try to get metadata to check if password is required
 			const res = await fetch(`/api/files/download/${fileId}?meta=1`, {
 				method: "GET",
 			});
-			
+
 			if (res.status === 401) {
 				// File requires password but none was provided
 				setError("Password required");
 				return;
 			}
-			
+
 			if (!res.ok) {
 				setError("File not found or expired");
 				return;
 			}
-			
+
 			const meta = await res.json();
 			if (!meta.isPasswordProtected) {
 				setIsUnlocked(true);
 				return;
 			}
-			
+
 			// File is password protected but no password was provided
 			setError("Password required");
 		} catch (e) {
@@ -396,10 +430,10 @@ export default function FileDownloadPage() {
 				return;
 			}
 			const blob = await res.blob();
-			const url = window.URL.createObjectURL(blob); 
+			const url = window.URL.createObjectURL(blob);
 			const a = document.createElement("a");
 			a.href = url;
-			a.download = `${fileInfo?.name.replace(/\.zip$/, "")}_partial.zip`;  // adds partial in the file name
+			a.download = `${fileInfo?.name.replace(/\.zip$/, "")}_partial.zip`; // adds partial in the file name
 			document.body.appendChild(a);
 			a.click();
 			a.remove();
@@ -410,7 +444,7 @@ export default function FileDownloadPage() {
 		}
 	};
 
-	if (!fileExists || !fileInfo) {
+	if (!fileExists) {
 		return (
 			<div className="min-h-screen">
 				<header className="border-b border-border/40 backdrop-blur-xs bg-background sticky top-0 z-50">
@@ -456,6 +490,10 @@ export default function FileDownloadPage() {
 		);
 	}
 
+	if (!fileInfo) {
+		return <FilesSkeleton />;
+	}
+
 	const FileIcon =
 		fileInfo &&
 		fileInfo.type &&
@@ -464,7 +502,7 @@ export default function FileDownloadPage() {
 			: FileText;
 
 	return (
-		<div className="min-h-screen bg-">
+		<div className="min-h-screen">
 			<header className="border-b border-border/40 backdrop-blur-xs bg-background/80 sticky top-0 z-50">
 				<div className="container mx-auto px-4 py-4 flex items-center justify-between">
 					<Link href="/">
@@ -488,31 +526,34 @@ export default function FileDownloadPage() {
 					<motion.div variants={subtleMotion}>
 						<Card className="rounded-2xl bg-card/80 border-border/50 shadow-lg">
 							<CardHeader>
-								<div className="flex items-center space-x-4">
-									<div className="w-14 h-14 bg-primary/10 rounded-lg flex items-center justify-center shadow">
-										<FileIcon className="h-7 w-7 text-primary" />
+								<div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+									<div className="w-12 h-12 sm:w-14 sm:h-14 bg-primary/10 rounded-lg flex items-center justify-center shadow shrink-0">
+										<FileIcon className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
 									</div>
-									<div>
-										<CardTitle className="text-2xl font-semibold">
+									<div className="flex-1 min-w-0">
+										<CardTitle className="text-lg sm:text-2xl font-semibold truncate">
 											{fileInfo?.name}
 										</CardTitle>
-										<p className="text-muted-foreground text-sm">
-											{formatFileSize(fileInfo?.size ?? 0)} &middot; Uploaded{"  "}
-											{formatDate(fileInfo?.uploadDate)}
+										<p className="text-muted-foreground text-xs sm:text-sm truncate flex-wrap flex gap-1">
+											<span>
+												{formatFileSize(fileInfo?.size ?? 0)} &middot;
+											</span>
+											{"  "}
+											<span> Uploaded {formatDate(fileInfo?.uploadDate)}</span>
 										</p>
 									</div>
-									<div className="flex flex-col items-end ml-auto space-y-2">
+									<div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 ml-0 sm:ml-auto mt-2 sm:mt-0">
 										<Badge
 											variant="default"
-											className="bg-green-100 text-green-800 border border-green-300"
+											className="bg-green-100 text-green-800 border border-green-300 flex-nowrap px-2 py-1 text-xs"
 										>
 											<Shield className="h-3 w-3 mr-1 text-green-600" />
 											Virus Free
 										</Badge>
-											<Badge variant="secondary">
-												<Lock className="h-3 w-3 mr-1" />
-												Protected
-											</Badge>
+										<Badge variant="secondary" className="py-1 px-2 text-xs">
+											<Lock className="h-3 w-3 mr-1" />
+											Protected
+										</Badge>
 									</div>
 								</div>
 							</CardHeader>
@@ -631,9 +672,11 @@ export default function FileDownloadPage() {
 								>
 									<Card className="rounded-2xl bg-card/80 border-border/50 shadow">
 										<CardHeader>
-											<CardTitle className="flex items-center">
-												<Archive className="h-5 w-5 mr-2" />
-												Select Files or Folders to Download
+											<CardTitle className="flex items-center flex-wrap gap-2">
+												<Archive className="h-5 w-5 " />
+												<span className="max-[476px]:text-base">
+													Select Files or Folders to Download
+												</span>
 											</CardTitle>
 										</CardHeader>
 										<CardContent>
@@ -660,7 +703,7 @@ export default function FileDownloadPage() {
 													{renderTree(fileTree)}
 												</AnimatePresence>
 											</div>
-											<div className="flex flex-col md:flex-row gap-2 mt-6">
+											<div className="flex flex-col md:flex-row gap-2 mt-6 w-full">
 												<Button
 													onClick={handleDownloadSelected}
 													disabled={downloading || selectedPaths.length === 0}
@@ -692,7 +735,9 @@ export default function FileDownloadPage() {
 													) : (
 														<>
 															<Download className="mr-2 h-4 w-4" />
-															Download Selected
+															<span className="truncate">
+																Download Selected
+															</span>
 														</>
 													)}
 												</Button>
@@ -712,7 +757,7 @@ export default function FileDownloadPage() {
 														rel="noopener noreferrer"
 													>
 														<Download className="mr-2 h-4 w-4" />
-														Download All
+														<span className="truncate">Download All</span>
 													</a>
 												</Button>
 											</div>
@@ -721,6 +766,27 @@ export default function FileDownloadPage() {
 											)}
 										</CardContent>
 									</Card>
+									<style jsx global>{`
+										@media (max-width: 475px) {
+											.card .flex.flex-wrap.gap-2.mb-3 {
+												flex-direction: column;
+												gap: 0.5rem;
+											}
+											.card .flex.flex-col.md\\:flex-row.gap-2.mt-6 {
+												flex-direction: column !important;
+											}
+											.card .w-full.flex.items-center.justify-center.gap-2 {
+												font-size: 0.95rem;
+												padding-left: 0.5rem;
+												padding-right: 0.5rem;
+											}
+											.card
+												.space-y-1.max-h-64.overflow-y-auto.border.rounded-lg.p-2.bg-muted\\/30.shadow-inner {
+												max-height: 40vh;
+												padding: 0.5rem;
+											}
+										}
+									`}</style>
 								</motion.div>
 							)}
 					</AnimatePresence>
@@ -728,8 +794,7 @@ export default function FileDownloadPage() {
 					<motion.div variants={subtleMotion}>
 						<div className="text-center space-y-2 mt-6">
 							<p className="text-xs text-muted-foreground">
-								Expires on {" "}
-								{onlyDate(fileInfo?.expiryDate)}
+								Expires on {onlyDate(fileInfo?.expiryDate)}
 							</p>
 						</div>
 					</motion.div>

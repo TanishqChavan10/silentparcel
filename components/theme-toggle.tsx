@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Moon, Sun, Monitor } from "lucide-react";
+import { Moon, Sun, LoaderCircle } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export default function ThemeToggle() {
 	const { theme, setTheme } = useTheme();
@@ -13,51 +14,31 @@ export default function ThemeToggle() {
 		setMounted(true);
 	}, []);
 
-	const handleThemeToggle = () => {
-		if (theme === "light") {
-			setTheme("dark");
-		} else if (theme === "dark") {
-			setTheme("system");
-		} else {
-			setTheme("light");
+	const Icon = () => {
+		if (!mounted) {
+			return (
+				<LoaderCircle
+					className={cn(
+						"h-[1.2rem] w-[1.2rem] animate-spin text-muted-foreground"
+					)}
+				/>
+			);
 		}
+
+		return theme === "dark" ? (
+			<Moon className="h-[1.2rem] w-[1.2rem] transition-all duration-300" />
+		) : (
+			<Sun className="h-[1.2rem] w-[1.2rem] transition-all duration-300" />
+		);
 	};
 
 	return (
 		<Button
 			variant="outline"
 			size="icon"
-			onClick={handleThemeToggle}
-			aria-label="Toggle theme"
-			className="rounded-full relative transition-colors duration-300"
+			onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
 		>
-			{mounted && (
-				<>
-					<Sun
-						className={`h-[1.2rem] w-[1.2rem] absolute transition-all duration-500 ease-in-out ${
-							theme === "light"
-								? "opacity-100 scale-100 rotate-0"
-								: "opacity-0 scale-75 -rotate-90"
-						}`}
-					/>
-
-					<Moon
-						className={`h-[1.2rem] w-[1.2rem] absolute transition-all duration-500 ease-in-out ${
-							theme === "dark"
-								? "opacity-100 scale-100 rotate-0"
-								: "opacity-0 scale-75 rotate-90"
-						}`}
-					/>
-
-					<Monitor
-						className={`h-[1.2rem] w-[1.2rem] absolute transition-all duration-500 ease-in-out ${
-							theme === "system"
-								? "opacity-100 scale-100 rotate-0"
-								: "opacity-0 scale-75 rotate-180"
-						}`}
-					/>
-				</>
-			)}
+			<Icon />
 			<span className="sr-only">Toggle theme</span>
 		</Button>
 	);

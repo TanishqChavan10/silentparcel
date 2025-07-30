@@ -1,4 +1,3 @@
-// --- End Improved File Tree Demo Component ---
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -16,6 +15,9 @@ import {
 	Undo,
 	ChevronDown,
 	ChevronRight,
+	LoaderCircle,
+	FileIcon,
+	Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +35,18 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
-import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"; // adjust import as needed
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import FilesSkeleton from "@/components/files-skeleton";
 
 interface Subfile {
 	file_name: string;
@@ -60,7 +73,6 @@ interface FileInfo {
 	appwrite_id: string;
 	isActive: boolean;
 }
-
 
 // --- Tree Utilities ---
 type FileTreeNode = {
@@ -97,7 +109,12 @@ function buildFileTree(
 					isFolder: i < parts.length - 1,
 					children: i < parts.length - 1 ? {} : undefined,
 					// Always set status to 'to-add' if status param is 'to-add'
-					status: status === "to-add" ? "to-add" : i === parts.length - 1 ? status : "existing",
+					status:
+						status === "to-add"
+							? "to-add"
+							: i === parts.length - 1
+							? status
+							: "existing",
 				};
 			} else if (status === "to-add") {
 				// If this is a new file/folder, ensure status is 'to-add' for all ancestors
@@ -156,38 +173,48 @@ function markNodeAndChildrenForDelete(node: FileTreeNode): FileTreeNode {
 	return {
 		...node,
 		status: "to-delete",
-		children: node.children ? node.children.map(markNodeAndChildrenForDelete) : undefined,
+		children: node.children
+			? node.children.map(markNodeAndChildrenForDelete)
+			: undefined,
 	};
 }
 function unmarkNodeAndChildrenForDelete(node: FileTreeNode): FileTreeNode {
 	return {
 		...node,
 		status: node.status === "to-add" ? "to-add" : "existing",
-		children: node.children ? node.children.map(unmarkNodeAndChildrenForDelete) : undefined,
+		children: node.children
+			? node.children.map(unmarkNodeAndChildrenForDelete)
+			: undefined,
 	};
 }
 
 // --- Handler functions for tree actions ---
 
 // Dedicated function to remove a 'to-add' node (file or folder) and all its children
-function removeToAddNodeAndChildren(nodes: FileTreeNode[], path: string): FileTreeNode[] {
-  return nodes
-    .map((node) => {
-      if (node.path === path && node.status === 'to-add') {
-        return null; // Remove this node (file or folder) and all its children
-      } else if (node.children) {
-        const updatedChildren = removeToAddNodeAndChildren(node.children, path).filter(Boolean) as FileTreeNode[];
-        if (updatedChildren.length === 0 && node.status === 'to-add') {
-          return null;
-        }
-        return {
-          ...node,
-          children: updatedChildren,
-        };
-      }
-      return node;
-    })
-    .filter(Boolean) as FileTreeNode[];
+function removeToAddNodeAndChildren(
+	nodes: FileTreeNode[],
+	path: string
+): FileTreeNode[] {
+	return nodes
+		.map((node) => {
+			if (node.path === path && node.status === "to-add") {
+				return null; // Remove this node (file or folder) and all its children
+			} else if (node.children) {
+				const updatedChildren = removeToAddNodeAndChildren(
+					node.children,
+					path
+				).filter(Boolean) as FileTreeNode[];
+				if (updatedChildren.length === 0 && node.status === "to-add") {
+					return null;
+				}
+				return {
+					...node,
+					children: updatedChildren,
+				};
+			}
+			return node;
+		})
+		.filter(Boolean) as FileTreeNode[];
 }
 
 export default function ManageFilePage() {
@@ -295,7 +322,6 @@ export default function ManageFilePage() {
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 	};
 
-
 	const handleDeleteFile = async () => {
 		setDeleting(true);
 		setError("");
@@ -325,8 +351,6 @@ export default function ManageFilePage() {
 		const toAddTree = buildFileTree(files, "to-add");
 		setFileTree((prev) => mergeFileTrees(prev, toAddTree));
 	};
-
-
 
 	// --- Folder expand/collapse logic ---
 	const toggleFolder = (path: string) => {
@@ -395,10 +419,14 @@ export default function ManageFilePage() {
 	function renderTree(nodes: FileTreeNode[], depth = 0) {
 		return nodes.map((node) => {
 			const isExpanded = expandedFolders.has(node.path);
-			if (node.status === 'to-add') {
+			if (node.status === "to-add") {
 				// For any new file or folder, show X to remove node and all its children
 				return (
-					<div key={node.path} style={{ marginLeft: depth * 14 }} className="py-0.5">
+					<div
+						key={node.path}
+						style={{ marginLeft: depth * 14 }}
+						className="py-0.5"
+					>
 						<div className="flex items-center gap-1 group">
 							{node.isFolder ? (
 								<>
@@ -406,7 +434,9 @@ export default function ManageFilePage() {
 										type="button"
 										onClick={() => toggleFolder(node.path)}
 										className="focus:outline-none p-0.5 rounded hover:bg-accent/30 transition"
-										aria-label={isExpanded ? "Collapse folder" : "Expand folder"}
+										aria-label={
+											isExpanded ? "Collapse folder" : "Expand folder"
+										}
 									>
 										{isExpanded ? (
 											<ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -419,7 +449,9 @@ export default function ManageFilePage() {
 							) : (
 								<span className="inline-block w-5" />
 							)}
-							{!node.isFolder && <FileText className="h-4 w-4 text-muted-foreground" />}
+							{!node.isFolder && (
+								<FileText className="h-4 w-4 text-muted-foreground" />
+							)}
 							<span
 								className={`flex-1 text-sm truncate select-text text-primary`}
 								title={node.name}
@@ -430,7 +462,9 @@ export default function ManageFilePage() {
 								variant="ghost"
 								size="icon"
 								onClick={() => handleRemoveToAddNode(node.path)}
-								className={`text-destructive${!node.isFolder ? ' hover:bg-destructive/10' : ''} p-1`}
+								className={`text-destructive${
+									!node.isFolder ? " hover:bg-destructive/10" : ""
+								} p-1`}
 								aria-label="Remove pending node"
 							>
 								<X className="h-4 w-4" />
@@ -444,7 +478,11 @@ export default function ManageFilePage() {
 			}
 			// Existing logic for other cases
 			return (
-				<div key={node.path} style={{ marginLeft: depth * 14 }} className="py-0.5">
+				<div
+					key={node.path}
+					style={{ marginLeft: depth * 14 }}
+					className="py-0.5"
+				>
 					{node.isFolder ? (
 						<div className="flex items-center gap-1 group">
 							<button
@@ -461,7 +499,11 @@ export default function ManageFilePage() {
 							</button>
 							<Archive className="h-4 w-4 text-muted-foreground" />
 							<span
-								className={`flex-1 text-sm truncate select-text ${node.status === "to-delete" ? "line-through text-destructive" : ""}`}
+								className={`flex-1 text-sm truncate select-text ${
+									node.status === "to-delete"
+										? "line-through text-destructive"
+										: ""
+								}`}
 								title={node.name}
 							>
 								{node.name}
@@ -493,7 +535,11 @@ export default function ManageFilePage() {
 							<span className="inline-block w-5" />
 							<FileText className="h-4 w-4 text-muted-foreground" />
 							<span
-								className={`flex-1 text-sm truncate select-text ${node.status === "to-delete" ? "line-through text-destructive" : ""}`}
+								className={`flex-1 text-sm truncate select-text ${
+									node.status === "to-delete"
+										? "line-through text-destructive"
+										: ""
+								}`}
 								title={node.name}
 							>
 								{node.name}
@@ -529,18 +575,40 @@ export default function ManageFilePage() {
 		});
 	}
 
+	function formatDate(date: string | Date | undefined) {
+		// gives IST based time
+		if (!date) return "";
+		const d = new Date(date);
+		const istOffset = 5.5 * 60; // IST is UTC +5:30 in minutes
+		const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+		const istTime = new Date(utc + istOffset * 60000);
+		return (
+			istTime.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) +
+			" at " +
+			istTime.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" })
+		);
+	}
+
 	const handleUndoDeleteNode = (path: string) => {
 		setFileTree((prev) =>
-			recursiveUpdateNode(prev, path, (node) => unmarkNodeAndChildrenForDelete({ ...node }))
+			recursiveUpdateNode(prev, path, (node) =>
+				unmarkNodeAndChildrenForDelete({ ...node })
+			)
 		);
 	};
 	const handleDeleteNode = (path: string) => {
 		setFileTree((prev) =>
-			recursiveUpdateNode(prev, path, (node) => markNodeAndChildrenForDelete({ ...node }))
+			recursiveUpdateNode(prev, path, (node) =>
+				markNodeAndChildrenForDelete({ ...node })
+			)
 		);
 	};
 
-	function recursiveUpdateNode(nodes: FileTreeNode[], path: string, updater: (node: FileTreeNode) => FileTreeNode): FileTreeNode[] {
+	function recursiveUpdateNode(
+		nodes: FileTreeNode[],
+		path: string,
+		updater: (node: FileTreeNode) => FileTreeNode
+	): FileTreeNode[] {
 		return nodes.map((node) => {
 			if (node.path === path) {
 				return updater(node);
@@ -621,60 +689,25 @@ export default function ManageFilePage() {
 		);
 	}
 
-	if (loading) {
-		return (
-			<div className="min-h-screen flex items-center justify-center bg-background">
-				<div className="flex flex-col items-center gap-3">
-					<div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
-					<div className="text-base text-muted-foreground">
-						Loading file info…
-					</div>
-				</div>
-			</div>
-		);
-	}
+	// if (loading) {
+	// 	return (
+	// 		<div className="min-h-screen flex items-center justify-center bg-background">
+	// 			<div className="flex flex-col items-center gap-3">
+	// 				<LoaderCircle className="animate-spin rounded-full h-8 w-8" />
+	// 				<div className="text-base text-muted-foreground">
+	// 					Loading file info…
+	// 				</div>
+	// 			</div>
+	// 		</div>
+	// 	);
+	// }
 
-	if (!fileInfo) {
-		return (
-			<div className="min-h-screen bg-background">
-				<header className="border-b border-border/40 backdrop-blur-xs bg-background/80 sticky top-0 z-50">
-					<div className="container mx-auto px-4 py-4 flex items-center justify-between">
-						<Link href="/">
-							<Button variant="ghost" size="sm" className="hover:bg-accent/50">
-								<ArrowLeft className="h-4 w-4 mr-2" />
-								Back to Home
-							</Button>
-						</Link>
-						<ThemeToggle />
-					</div>
-				</header>
-
-				<div className="container mx-auto px-4 py-8 max-w-md">
-					<Card className="bg-card/50 border-border/50">
-						<CardHeader>
-							<CardTitle className="flex items-center text-destructive">
-								<AlertTriangle className="h-5 w-5 mr-2" />
-								File Not Found
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							<p className="text-muted-foreground">
-								This file doesn't exist or has been deleted.
-							</p>
-							<Link href="/files">
-								<Button className="w-full">Upload New File</Button>
-							</Link>
-						</CardContent>
-					</Card>
-				</div>
-			</div>
-		);
+	if (!fileInfo || loading) {
+		return <FilesSkeleton />;
 	}
 
 	return (
 		<div className="min-h-screen bg-background">
-			{/* Demo: Improved File Tree UI Preview (for development/testing) */}
-			{/* <ImprovedFileTree /> */}
 			<header className="border-b border-border/40 backdrop-blur-xs bg-background/80 sticky top-0 z-50">
 				<div className="container mx-auto px-4 py-4 flex items-center justify-between">
 					<Link href="/">
@@ -688,10 +721,10 @@ export default function ManageFilePage() {
 							onClick={viewAsReceiver}
 							variant="outline"
 							size="sm"
-							className="hover:scale-105 transition-transform"
+							className="gap-2 hover:scale-105 transition-transform"
 						>
-							<Eye className="h-4 w-4 mr-2" />
-							View as Receiver
+							<Eye className="h-4 w-4" />
+							<span className="max-[476px]:hidden">View as Receiver</span>
 						</Button>
 						<ThemeToggle />
 					</div>
@@ -701,32 +734,34 @@ export default function ManageFilePage() {
 			<div className="container mx-auto px-4 py-8 max-w-4xl">
 				<div className="space-y-6">
 					{/* File Header */}
-					<Card className="bg-card/50 border-border/50">
+					<Card className="rounded-2xl bg-card/80 border-border/50 shadow-lg">
 						<CardHeader>
-							<div className="flex items-start justify-between">
-								<div className="flex items-center space-x-4">
-									<div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-										<Archive className="h-6 w-6 text-primary" />
-									</div>
-									<div>
-										<CardTitle className="text-xl">{fileInfo.name}</CardTitle>
-										<p className="text-muted-foreground">
-											{formatFileSize(fileInfo.size)} • Uploaded{" "}
-											{new Date(fileInfo.uploadDate).toLocaleDateString()}
-										</p>
-									</div>
+							<div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+								<div className="w-12 h-12 sm:w-14 sm:h-14 bg-primary/10 rounded-lg flex items-center justify-center shadow shrink-0">
+									<FileIcon className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
 								</div>
-
-								<div className="flex flex-col items-end space-y-2">
+								<div className="flex-1 min-w-0">
+									<CardTitle className="text-lg sm:text-2xl font-semibold truncate">
+										{fileInfo?.name}
+									</CardTitle>
+									<p className="text-muted-foreground text-xs sm:text-sm truncate flex-wrap flex gap-1">
+										<span>{formatFileSize(fileInfo?.size ?? 0)} &middot;</span>
+										{"  "}
+										<span> Uploaded {formatDate(fileInfo?.uploadDate)}</span>
+									</p>
+								</div>
+								<div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 ml-0 sm:ml-auto mt-2 sm:mt-0">
 									<Badge
 										variant="default"
-										className="bg-green-100 text-green-800 border border-green-300"
+										className="bg-green-100 text-green-800 border border-green-300 flex-nowrap px-2 py-1 text-xs"
 									>
 										<Shield className="h-3 w-3 mr-1 text-green-600" />
 										Virus Free
 									</Badge>
-									<Badge variant="secondary">Protected</Badge>
-
+									<Badge variant="secondary" className="py-1 px-2 text-xs">
+										<Lock className="h-3 w-3 mr-1" />
+										Protected
+									</Badge>
 								</div>
 							</div>
 						</CardHeader>
@@ -766,7 +801,7 @@ export default function ManageFilePage() {
 									<div className="text-2xl font-bold text-chart-2">
 										{Math.ceil(
 											(new Date(fileInfo.expiryDate).getTime() - Date.now()) /
-											(1000 * 60 * 60 * 24)
+												(1000 * 60 * 60 * 24)
 										)}
 									</div>
 									<p className="text-sm text-muted-foreground">
@@ -871,35 +906,47 @@ export default function ManageFilePage() {
 										</span>
 									</div>
 									<div className="pt-4 border-t border-border/30">
-										<AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+										<AlertDialog
+											open={showDeleteDialog}
+											onOpenChange={setShowDeleteDialog}
+										>
 											<AlertDialogTrigger asChild>
-												<Button variant="destructive" className="w-full" size="sm">
+												<Button
+													variant="destructive"
+													className="w-full"
+													size="sm"
+												>
 													<Trash2 className="h-4 w-4 mr-2" />
 													Delete File
 												</Button>
 											</AlertDialogTrigger>
 											<AlertDialogContent>
 												<div>
-													<h2 className="font-bold text-lg mb-2">Delete File?</h2>
-													<p>
-														This will permanently delete the file from Database and Storage. This action cannot be undone.
-													</p>
-													{error && <div className="text-destructive mt-2">{error}</div>}
+													<AlertDialogTitle className="font-bold text-lg mb-2">
+														Delete File?
+													</AlertDialogTitle>
+													<AlertDialogDescription>
+														This will permanently delete the file from Database
+														and Storage. This action cannot be undone.
+													</AlertDialogDescription>
+													{error && (
+														<div className="text-destructive mt-2">{error}</div>
+													)}
 												</div>
-												<div className="flex justify-end gap-2 mt-4">
-													<AlertDialogCancel asChild>
-														<Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-															Cancel
-														</Button>
+												<div className="flex items-end justify-end gap-2 mt-4">
+													<AlertDialogCancel className="bg-secondary hover:bg-secondary/90">
+														Cancel
 													</AlertDialogCancel>
-													<AlertDialogAction asChild>
-														<Button
-															variant="destructive"
-															onClick={handleDeleteFile}
-															disabled={deleting}
-														>
-															{deleting ? "Deleting..." : "Delete"}
-														</Button>
+													<AlertDialogAction
+														onClick={handleDeleteFile}
+														disabled={deleting}
+														className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+													>
+														{/* <Button
+															variant="outline"
+														> */}
+														{deleting ? "Deleting..." : "Delete"}
+														{/* </Button> */}
 													</AlertDialogAction>
 												</div>
 											</AlertDialogContent>
