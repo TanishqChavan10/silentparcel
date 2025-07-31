@@ -410,7 +410,7 @@ export default function OpenSourcePage() {
 									Found a security vulnerability? Report it responsibly.
 								</p>
 								<ul className="space-y-1 text-xs text-muted-foreground">
-									<li>• Email: security@silentparcel.com</li>
+									<li>• Email: singhaman21@proton.me</li>
 									<li>• Include detailed description</li>
 									<li>• Provide proof of concept</li>
 									<li>• Allow time for response</li>

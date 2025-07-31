@@ -274,7 +274,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆘 Support
 
-For support, email support@silentparcel.com or create an issue in the GitHub repository.
+For support, email singhaman21@proton.me or create an issue in the GitHub repository.
 
 ## 🔮 Roadmap
 
