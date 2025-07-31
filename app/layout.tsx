@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@/providers/theme-provider";
 import localFont from "next/font/local";
 import Script from "next/script";
+import { UTMTracker } from "@/components/utm-tracker";
 
 export const metadata: Metadata = {
 	title: {
@@ -166,6 +167,7 @@ export default function RootLayout({
 				</Script>
 			</head>
 			<body className={`${Inter.variable} ${JetbrainsMono.variable}`}>
+				<UTMTracker />
 				<ThemeProvider
 					attribute="class"
 					defaultTheme="dark"
