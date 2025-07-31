@@ -417,7 +417,7 @@ export default function PrivacyPage() {
 									privacy practices, please contact us:
 								</p>
 								<div className="space-y-2">
-									<p className="font-medium">Email: privacy@silentparcel.com</p>
+									<p className="font-medium">Email: singhaman21@proton.me</p>
 									<p className="text-sm text-muted-foreground">
 										We typically respond within 24 hours.
 									</p>

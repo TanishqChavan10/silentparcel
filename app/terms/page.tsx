@@ -390,7 +390,7 @@ export default function TermsPage() {
 								If you have any questions about these Terms of Service, please contact us:
 							</p>
 							<div className="space-y-2">
-								<p className="font-medium">Email: legal@silentparcel.com</p>
+								<p className="font-medium">Email: singhaman21@proton.me</p>
 								<p className="text-sm text-muted-foreground">
 									We typically respond within 24-48 hours.
 								</p>
