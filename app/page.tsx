@@ -259,7 +259,8 @@ export default function Home() {
 
 			<nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-lg border-b border-border">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-					<div className="flex items-center space-x-3">
+					<div className="flex items-center space-x-3"
+					onClick={ () => {window.location.href = "/"}}>
 						<div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
 							<Lock className="h-4 w-4 text-primary-foreground" />
 						</div>
@@ -782,7 +783,7 @@ export default function Home() {
 								<span className="font-medium">without compromise?</span>
 							</h2>
 							<p className="text-xl text-muted-foreground mb-12 max-w-2xl mx-auto">
-								Join thousands of privacy-conscious users who refuse to
+								Join hundreds of privacy-conscious users who refuse to
 								compromise on security.
 							</p>
 
@@ -839,7 +840,7 @@ export default function Home() {
 						</div>
 					</div>
 					<div className="mt-8 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-						&copy; 2025 SilentParcel. Built with privacy in mind.
+						&copy; 2025 SilentParcel. Crafted for privacy, by privacy-conscious users.
 					</div>
 				</div>
 			</footer>

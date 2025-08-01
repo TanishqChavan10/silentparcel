@@ -61,6 +61,7 @@ interface Subfile {
 interface FileInfo {
 	id: string;
 	name: string;
+	original_name: string;
 	size: number;
 	type: string;
 	uploadDate: string;
@@ -72,6 +73,7 @@ interface FileInfo {
 	files: Subfile[];
 	appwrite_id: string;
 	isActive: boolean;
+	totalFiles: number;
 }
 
 // --- Tree Utilities ---
@@ -246,15 +248,24 @@ export default function ManageFilePage() {
 		setLoading(true);
 		setError("");
 		try {
-			const res = await fetch(`/api/files/metadata/${fileId}`);
+			// Add cache busting parameter to ensure fresh data
+			const timestamp = Date.now();
+			const res = await fetch(`/api/files/metadata/${fileId}?t=${timestamp}`, {
+				cache: 'no-store',
+				headers: {
+					'Cache-Control': 'no-cache'
+				}
+			});
 			if (!res.ok) {
 				setError("File not found or has been deleted.");
 				setFileInfo(null);
 			} else {
 				const data = await res.json();
+				console.log("Loaded fresh file data:", data);
 				setFileInfo(data);
 			}
 		} catch (e) {
+			console.error("Failed to load file data:", e);
 			setError("Failed to fetch file metadata.");
 			setFileInfo(null);
 		} finally {
@@ -373,11 +384,18 @@ export default function ManageFilePage() {
 		const filesToAdd: File[] = [];
 		const relPathsToAdd: string[] = [];
 		const filesToDelete: string[] = [];
+		const pathsToAdd: string[] = []; // For folders and files that need metadata
+		
 		function traverse(nodes: FileTreeNode[]) {
 			for (const node of nodes) {
-				if (node.status === "to-add" && node.file instanceof File) {
-					filesToAdd.push(node.file);
-					relPathsToAdd.push(node.path);
+				if (node.status === "to-add") {
+					if (node.file instanceof File) {
+						// This is a file with actual File object
+						filesToAdd.push(node.file);
+						relPathsToAdd.push(node.path);
+					}
+					// Always add the path for metadata tracking (both files and folders)
+					pathsToAdd.push(node.path);
 				}
 				if (node.status === "to-delete" && node.file_token) {
 					filesToDelete.push(node.file_token);
@@ -386,29 +404,61 @@ export default function ManageFilePage() {
 			}
 		}
 		traverse(fileTree);
-		if (filesToAdd.length === 0 && filesToDelete.length === 0) return;
+		
+		// Check if there are any changes to process
+		if (filesToAdd.length === 0 && filesToDelete.length === 0 && pathsToAdd.length === 0) {
+			console.log("No changes detected");
+			return;
+		}
+		
+		console.log("Processing changes:", {
+			filesToAdd: filesToAdd.length,
+			filesToDelete: filesToDelete.length,
+			pathsToAdd: pathsToAdd.length
+		});
+		
 		setUpdateLoading(true);
 		setError("");
 		try {
 			const formData = new FormData();
+			
+			// Add actual files
 			filesToAdd.forEach((file, i) => {
 				formData.append("files", file);
 				formData.append("relativePaths", relPathsToAdd[i]);
 			});
+			
+			// Add metadata for all paths (including folders)
+			formData.append("pathsToAdd", JSON.stringify(pathsToAdd));
 			formData.append("editToken", editToken);
 			formData.append("filesToDelete", JSON.stringify(filesToDelete));
+			
+			console.log("Sending to API:", {
+				files: filesToAdd.map(f => f.name),
+				paths: pathsToAdd,
+				deletions: filesToDelete
+			});
+			
 			const res = await fetch(`/api/files/manage/${fileId}`, {
 				method: "POST",
 				body: formData,
 			});
 			const data = await res.json();
 			if (!res.ok) {
+				console.error("API Error:", data);
 				setError(data.error || "Failed to update file");
 			} else {
+				console.log("Update successful:", data);
+				// Force reload data with cache busting
 				await loadFileData();
 				setFileTree([]); // will be rebuilt from fileInfo
+				
+				// Show success message
+				setError(""); // Clear any existing errors
+				// You could add a success toast here if you have a toast system
 			}
 		} catch (err) {
+			console.error("Update failed:", err);
 			setError("Failed to update file");
 		} finally {
 			setUpdateLoading(false);
@@ -742,12 +792,18 @@ export default function ManageFilePage() {
 								</div>
 								<div className="flex-1 min-w-0">
 									<CardTitle className="text-lg sm:text-2xl font-semibold truncate">
-										{fileInfo?.name}
+										{fileInfo?.original_name || fileInfo?.name}
 									</CardTitle>
 									<p className="text-muted-foreground text-xs sm:text-sm truncate flex-wrap flex gap-1">
 										<span>{formatFileSize(fileInfo?.size ?? 0)} &middot;</span>
 										{"  "}
 										<span> Uploaded {formatDate(fileInfo?.uploadDate)}</span>
+										{fileInfo?.totalFiles && (
+											<>
+												{"  "}
+												<span>&middot; {fileInfo.totalFiles} files</span>
+											</>
+										)}
 									</p>
 								</div>
 								<div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 ml-0 sm:ml-auto mt-2 sm:mt-0">

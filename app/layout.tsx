@@ -143,7 +143,7 @@ export default function RootLayout({
 			<head>
 				{/* Google Analytics */}
 				{/* for domain analytics */}
-				<Script
+				{/* <Script
 					src="https://www.googletagmanager.com/gtag/js?id=G-B8B9Y2S6C3"
 					strategy="afterInteractive"
 				/>
@@ -154,21 +154,21 @@ export default function RootLayout({
 						gtag('js', new Date());
 						gtag('config', 'G-B8B9Y2S6C3');
 					`}
-				</Script>
+				</Script> */}
 
 					{/* for vercel analytics */}
-				<Script src="https://www.googletagmanager.com/gtag/js?id=G-PMRFNG45RF" strategy="afterInteractive" />
+				{/* <Script src="https://www.googletagmanager.com/gtag/js?id=G-PMRFNG45RF" strategy="afterInteractive" />
 				<Script id="google-analytics" strategy="afterInteractive">
 					{`window.dataLayer = window.dataLayer || [];
 					function gtag(){dataLayer.push(arguments);}
 					gtag('js', new Date());
 
 					gtag('config', 'G-PMRFNG45RF');`}
-				</Script>
+				</Script> */}
 			</head>
 			<body className={`${Inter.variable} ${JetbrainsMono.variable}`}>
 				{/* Temporarily disabled UTM tracking to debug 500 error */}
-				<UTMTrackerWrapper />
+				{/* <UTMTrackerWrapper /> */}
 				<ThemeProvider
 					attribute="class"
 					defaultTheme="dark"
