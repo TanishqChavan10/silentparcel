@@ -75,7 +75,7 @@ export async function GET(
     console.log('Returning file metadata and file tree');
     const metadata = {
       id: fileRecord.id,
-      name: fileRecord.original_name || fileRecord.name,
+      original_name: fileRecord.original_name,
       size: fileRecord.size,
       type: fileRecord.mime_type,
       uploadDate: fileRecord.uploaded_at || fileRecord.created_at,
@@ -86,10 +86,18 @@ export async function GET(
       virusScanStatus: fileRecord.virus_scan_status,
       appwrite_id: fileRecord.appwrite_id,
       isActive: fileRecord.is_active,
-      files: subfiles
+      files: subfiles,
+      totalFiles: subfiles.length // Add total files count
     };
 
-    return NextResponse.json(metadata);
+    const response = NextResponse.json(metadata);
+    
+    // Add headers to prevent caching for dynamic content
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    
+    return response;
   } catch (error: any) {
     const stack = typeof error === 'object' && error && 'stack' in error ? error.stack : undefined;
     console.error('[Metadata API] Unexpected error:', error, stack);

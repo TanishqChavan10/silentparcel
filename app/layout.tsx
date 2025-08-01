@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@/providers/theme-provider";
 import localFont from "next/font/local";
 import Script from "next/script";
-import { UTMTracker } from "@/components/utm-tracker";
+import { UTMTrackerWrapper } from "@/components/utm-tracker-wrapper";
 
 export const metadata: Metadata = {
 	title: {
@@ -157,17 +157,18 @@ export default function RootLayout({
 				</Script>
 
 					{/* for vercel analytics */}
-				<Script src="https://www.googletagmanager.com/gtag/js?id=G-PMRFNG45RF" strategy="afterInteractive" />
+				{/* <Script src="https://www.googletagmanager.com/gtag/js?id=G-PMRFNG45RF" strategy="afterInteractive" />
 				<Script id="google-analytics" strategy="afterInteractive">
 					{`window.dataLayer = window.dataLayer || [];
 					function gtag(){dataLayer.push(arguments);}
 					gtag('js', new Date());
 
 					gtag('config', 'G-PMRFNG45RF');`}
-				</Script>
+				</Script> */}
 			</head>
 			<body className={`${Inter.variable} ${JetbrainsMono.variable}`}>
-				<UTMTracker />
+				{/* Temporarily disabled UTM tracking to debug 500 error */}
+				<UTMTrackerWrapper />
 				<ThemeProvider
 					attribute="class"
 					defaultTheme="dark"

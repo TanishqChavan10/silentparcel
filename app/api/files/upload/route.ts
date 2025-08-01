@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BUCKETS } from '@/lib/appwrite';
-import { generateId, generateSecureId, validateFileType, validateFileSize, getClientIP, getAllowedTypes, hashPassword } from '@/lib/security';
+import { generateId, generateSecureId, validateFileType, validateFileSize, getClientIP, getAllowedTypes, hashPassword, encryptZipFile } from '@/lib/security';
 import { supabaseAdmin } from '@/lib/supabase';
 import { virusScanner } from '@/lib/virusScanner';
 import { logger } from '@/lib/logger';
@@ -211,7 +211,6 @@ export async function POST(request: NextRequest) {
     const zipName = `archive_${Date.now()}.zip`;
 
     // Encrypt the ZIP buffer
-    const { encryptZipFile } = require('@/lib/security');
     const { encrypted, encryptedKey } = encryptZipFile(zipBuffer);
 
     // Upload encrypted ZIP to Appwrite

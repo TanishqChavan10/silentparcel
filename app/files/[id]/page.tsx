@@ -532,7 +532,7 @@ export default function FileDownloadPage() {
 									</div>
 									<div className="flex-1 min-w-0">
 										<CardTitle className="text-lg sm:text-2xl font-semibold truncate">
-											{fileInfo?.name}
+											{fileInfo?.original_name}
 										</CardTitle>
 										<p className="text-muted-foreground text-xs sm:text-sm truncate flex-wrap flex gap-1">
 											<span>
@@ -540,6 +540,12 @@ export default function FileDownloadPage() {
 											</span>
 											{"  "}
 											<span> Uploaded {formatDate(fileInfo?.uploadDate)}</span>
+											{fileInfo?.totalFiles && (
+												<>
+													{"  "}
+													<span>&middot; {fileInfo.totalFiles} files</span>
+												</>
+											)}
 										</p>
 									</div>
 									<div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 ml-0 sm:ml-auto mt-2 sm:mt-0">
@@ -752,7 +758,7 @@ export default function FileDownloadPage() {
 																? `?password=${encodeURIComponent(password)}`
 																: ""
 														}`}
-														download={fileInfo?.name}
+														download={fileInfo?.original_name || fileInfo?.name}
 														target="_blank"
 														rel="noopener noreferrer"
 													>
