@@ -2,7 +2,7 @@
 export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { storage, BUCKETS } from "@/lib/appwrite";
-import { verifyPassword, getClientIP } from "@/lib/security";
+import { verifyPassword, getClientIP, decryptZipFile } from "@/lib/security";
 import { supabaseAdmin } from "@/lib/supabase";
 import AdmZip from "adm-zip";
 import stream from "stream";
@@ -119,7 +119,6 @@ async function downloadAndDecryptFile(appwriteId: string, encryptedKey: string) 
 
   try {
     const encryptedBuffer = await getAppwriteFileBuffer(fileDownloadResult as Promise<any>);
-    const { decryptZipFile } = require('@/lib/security');
     const fileBuffer = decryptZipFile(encryptedBuffer, encryptedKey);
     console.log('File downloaded and decrypted from Appwrite');
     return fileBuffer;

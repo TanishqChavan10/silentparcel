@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { BUCKETS } from '@/lib/appwrite';
-import { generateId, generateSecureId, getClientIP } from '@/lib/security';
+import { generateId, generateSecureId, getClientIP, decryptZipFile, encryptZipFile } from '@/lib/security';
 import AdmZip from 'adm-zip';
 import FormData from 'form-data';
 import fetch from 'node-fetch';
@@ -78,7 +78,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
 
     const zipBuffer = Buffer.from(await zipRes.arrayBuffer());
-    const { decryptZipFile } = require('@/lib/security');
     const decryptedZipBuffer = decryptZipFile(zipBuffer, fileRecord.encrypted_key);
     const zip = new AdmZip(decryptedZipBuffer);
 
@@ -118,7 +117,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const zipName = `archive_${Date.now()}.zip`;
     const newAppwriteId = generateId();
 
-    const { encryptZipFile } = require('@/lib/security');
     const { encrypted, encryptedKey } = encryptZipFile(newZipBuffer);
 
     const form = new FormData();
