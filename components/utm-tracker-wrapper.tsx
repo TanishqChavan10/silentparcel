@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 
 const UTMTracker = dynamic(() => import('@/components/utm-tracker').then(mod => ({ default: mod.UTMTracker })), {
-  ssr: false
+  ssr: true
 });
 
 /**
