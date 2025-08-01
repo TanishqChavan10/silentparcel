@@ -162,7 +162,7 @@ export function LinkResultModal({
 
 					<div className="text-center text-xs text-muted-foreground border-t border-border/30 pt-4">
 						<span className="font-medium">Note:</span> Files are auto-deleted
-						after <span className="font-semibold">30 days</span> of inactivity.
+						after <span className="font-semibold">07 days</span> of inactivity.
 					</div>
 				</div>
 			</DialogContent>

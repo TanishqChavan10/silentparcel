@@ -7,9 +7,14 @@ import { trackUTMAndCleanUrl } from '@/lib/utm-tracking';
  */
 export function useUTMTracking() {
   useEffect(() => {
-    // Track UTM parameters and clean URL
-    trackUTMAndCleanUrl().catch(error => {
-      console.error('Error tracking UTM parameters:', error);
-    });
+    // Add a small delay to ensure the page is fully loaded
+    const timer = setTimeout(() => {
+      // Track UTM parameters and clean URL
+      trackUTMAndCleanUrl().catch(error => {
+        console.error('Error tracking UTM parameters:', error);
+      });
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, []);
 } 

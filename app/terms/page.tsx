@@ -354,7 +354,7 @@ export default function TermsPage() {
 						</CardHeader>
 						<CardContent>
 							<p className="text-muted-foreground mb-4">
-								We reserve the right to modify or replace these Terms at any time. If a revision is material, we will try to provide at least 30 days notice prior to any new terms taking effect.
+								We reserve the right to modify or replace these Terms at any time. If a revision is material, we will try to provide at least 07 days notice prior to any new terms taking effect.
 							</p>
 							<p className="text-muted-foreground">
 								What constitutes a material change will be determined at our sole discretion. By continuing to access or use our Service after any revisions become effective, you agree to be bound by the revised terms.
