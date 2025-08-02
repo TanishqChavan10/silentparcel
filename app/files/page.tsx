@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import {
 	ArrowLeft,
 	Upload,
@@ -35,7 +34,8 @@ type UploadStage =
 	| "captcha"
 	| "uploading"
 	| "complete"
-	| "virus-error";
+	| "virus-error"
+	| "upload-error";
 
 interface FileData {
 	name: string;
@@ -125,16 +125,24 @@ export default function FilesPage() {
 				setUploadProgress(selectedFiles.map(() => 100));
 				setTimeout(() => setStage("complete"), 500);
 			} else {
-				setVirusScanStatus(selectedFiles.map(() => "infected"));
-				setUploadError(
-					data.error || "File contains a virus and cannot be shared."
-				);
-				setStage("virus-error");
+				// Check if it's a virus-related error or other type of error
+				const isVirusError = data.error?.includes('virus') || data.error?.includes('malicious') || data.error?.includes('infected');
+				if (isVirusError) {
+					setVirusScanStatus(selectedFiles.map(() => "infected"));
+					setUploadError(data.error || "File contains a virus and cannot be shared.");
+					setStage("virus-error");
+				} else {
+					// Handle other types of errors (size limits, network issues, etc.)
+					setVirusScanStatus(selectedFiles.map(() => null));
+					setUploadError(data.error || "Upload failed. Please try again.");
+					setStage("upload-error"); // Use new error stage
+				}
 			}
-		} catch (err) {
-			setVirusScanStatus(selectedFiles.map(() => "infected"));
-			setUploadError("File contains a virus and cannot be shared.");
-			setStage("virus-error");
+		} catch (err: any) {
+			console.error('Upload error:', err);
+			setVirusScanStatus(selectedFiles.map(() => null));
+			setUploadError(err.message || "Network error during upload. Please try again.");
+			setStage("upload-error"); // Use new error stage
 		}
 	};
 
@@ -644,12 +652,54 @@ export default function FilesPage() {
 									<CardHeader>
 										<CardTitle className="flex items-center gap-2 text-red-600 font-semibold text-base sm:text-lg">
 											<AlertTriangle className="h-5 w-5" />
-											Error
+											Virus Detected
 										</CardTitle>
 									</CardHeader>
 									<CardContent className="space-y-3 sm:space-y-4">
 										<motion.div
 											className="text-center text-red-600 font-medium text-sm sm:text-base"
+											initial={{ opacity: 0, y: 10 }}
+											animate={{ opacity: 1, y: 0 }}
+											transition={{ duration: 0.2 }}
+										>
+											{uploadError}
+										</motion.div>
+										<motion.div
+											initial={{ opacity: 0, scale: 0.98 }}
+											animate={{ opacity: 1, scale: 1 }}
+											transition={{ duration: 0.2 }}
+										>
+											<Button
+												onClick={handleBackToSelect}
+												className="w-full rounded-lg font-semibold"
+											>
+												Try Again
+											</Button>
+										</motion.div>
+									</CardContent>
+								</Card>
+							</motion.div>
+						)}
+					</AnimatePresence>
+
+					<AnimatePresence>
+						{stage === "upload-error" && uploadError && (
+							<motion.div
+								initial={{ opacity: 0, scale: 0.97, y: 20 }}
+								animate={{ opacity: 1, scale: 1, y: 0 }}
+								exit={{ opacity: 0, scale: 0.97, y: 20 }}
+								transition={{ duration: 0.35, ease: "easeOut" }}
+							>
+								<Card className="bg-card/70 border-none shadow-md rounded-lg sm:rounded-xl">
+									<CardHeader>
+										<CardTitle className="flex items-center gap-2 text-orange-600 font-semibold text-base sm:text-lg">
+											<AlertTriangle className="h-5 w-5" />
+											Upload Error
+										</CardTitle>
+									</CardHeader>
+									<CardContent className="space-y-3 sm:space-y-4">
+										<motion.div
+											className="text-center text-orange-600 font-medium text-sm sm:text-base"
 											initial={{ opacity: 0, y: 10 }}
 											animate={{ opacity: 1, y: 0 }}
 											transition={{ duration: 0.2 }}

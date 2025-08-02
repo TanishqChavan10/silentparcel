@@ -77,23 +77,72 @@ async function uploadToAppwrite(encrypted: Buffer, zipName: string, fileId: stri
   form.append('fileId', fileId);
   form.append('file', encrypted, { filename: zipName, contentType: 'application/zip' });
   
-  const res = await fetch(`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${BUCKETS.FILES}/files`, {
-    method: 'POST',
-    headers: {
-      'X-Appwrite-Project': process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID ?? '',
-      'X-Appwrite-Key': process.env.APPWRITE_API_KEY ?? '',
-      ...form.getHeaders()
-    },
-    body: form
-  });
-  
-  if (!res.ok) {
-    const errText = await res.text();
-    console.error('Appwrite upload failed:', errText);
-    return { error: NextResponse.json({ error: 'Appwrite upload failed', details: errText }, { status: 500 }) };
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
+    
+    const res = await fetch(`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${BUCKETS.FILES}/files`, {
+      method: 'POST',
+      headers: {
+        'X-Appwrite-Project': process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID ?? '',
+        'X-Appwrite-Key': process.env.APPWRITE_API_KEY ?? '',
+        ...form.getHeaders()
+      },
+      body: form,
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('Appwrite upload failed:', errText);
+      
+      // Handle specific Appwrite errors
+      if (res.status === 503) {
+        return { error: NextResponse.json({ 
+          error: 'Appwrite service temporarily unavailable. Please try again in a few minutes.',
+          details: 'Service timeout or overloaded'
+        }, { status: 503 }) };
+      }
+      
+      if (res.status === 413) {
+        return { error: NextResponse.json({ 
+          error: 'File too large for Appwrite storage',
+          details: 'File exceeds Appwrite bucket limits'
+        }, { status: 413 }) };
+      }
+      
+      return { error: NextResponse.json({ 
+        error: 'Appwrite upload failed', 
+        details: errText,
+        status: res.status
+      }, { status: 500 }) };
+    }
+    
+    return { uploadedFile: await res.json() as any };
+  } catch (error: any) {
+    console.error('Appwrite upload error:', error);
+    
+    if (error.name === 'AbortError') {
+      return { error: NextResponse.json({ 
+        error: 'Upload timeout - file may be too large or network is slow',
+        details: 'Request timed out after 60 seconds'
+      }, { status: 408 }) };
+    }
+    
+    if (error.code === 'ECONNRESET' || error.code === 'ENOTFOUND') {
+      return { error: NextResponse.json({ 
+        error: 'Network connection error',
+        details: 'Unable to connect to Appwrite service'
+      }, { status: 503 }) };
+    }
+    
+    return { error: NextResponse.json({ 
+      error: 'Upload failed due to network error',
+      details: error.message
+    }, { status: 500 }) };
   }
-  
-  return { uploadedFile: await res.json() as any };
 }
 
 // Utility function to create audit log
@@ -122,6 +171,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Log the configured max file size for debugging
+    const maxSize = parseInt(process.env.MAX_FILE_SIZE || '52428800');
+    console.log('Configured MAX_FILE_SIZE:', maxSize, 'bytes (', Math.round(maxSize / 1024 / 1024), 'MB)');
+
     // Rate limiting
     // const rateLimitResult = await fileUploadRateLimiter.isAllowed(request);
     // if (!rateLimitResult.allowed) {
@@ -141,6 +194,8 @@ export async function POST(request: NextRequest) {
     if (files.length > 0) {
       console.log('File types:', files.map(f => typeof f));
       console.log('File names:', files.map(f => f && f.name));
+      console.log('File sizes:', files.map(f => f && f.size));
+      console.log('Total size:', files.reduce((sum, f) => sum + (f ? f.size : 0), 0));
     }
     const password = formData.get('password') as string;
     const expiresIn = formData.get('expiresIn') as string;
@@ -215,8 +270,12 @@ export async function POST(request: NextRequest) {
 
     // Upload encrypted ZIP to Appwrite
     const fileId = generateId();
+    console.log(`Attempting to upload ${zipName} (${encrypted.length} bytes) to Appwrite...`);
     const uploadResult = await uploadToAppwrite(encrypted, zipName, fileId);
-    if (uploadResult.error) return uploadResult.error;
+    if (uploadResult.error) {
+      console.error('Appwrite upload failed:', uploadResult.error);
+      return uploadResult.error;
+    }
     
     const uploadedFile = uploadResult.uploadedFile;
 
@@ -297,9 +356,30 @@ export async function POST(request: NextRequest) {
     });
   } catch (err: any) {
     logger.error('Upload error:', err);
+    
+    // Provide more specific error messages based on error type
+    let errorMessage = 'Unexpected server error';
+    let statusCode = 500;
+    
+    if (err.message?.includes('body too large') || err.message?.includes('payload too large')) {
+      errorMessage = 'File size exceeds server limit';
+      statusCode = 413;
+    } else if (err.message?.includes('timeout')) {
+      errorMessage = 'Upload timeout - file may be too large';
+      statusCode = 408;
+    } else if (err.message?.includes('network') || err.message?.includes('connection')) {
+      errorMessage = 'Network error during upload';
+      statusCode = 503;
+    }
+    
     return NextResponse.json(
-      { error: 'Unexpected server error', details: err.message },
-      { status: 500 }
+      { 
+        error: errorMessage, 
+        details: err.message,
+        maxFileSize: process.env.MAX_FILE_SIZE || '52428800',
+        maxFileSizeMB: Math.round(parseInt(process.env.MAX_FILE_SIZE || '52428800') / 1024 / 1024)
+      },
+      { status: statusCode }
     );
   }
 }

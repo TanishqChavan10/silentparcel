@@ -112,11 +112,12 @@ export class VirusScanner {
       };
     }
 
-    // Check file size limits
-    if (buffer.length > 1024 * 1024 * 100) { // 100MB limit for basic scan
+    // Check file size limits - use environment variable or default to 50mb as fallback
+    const maxSize = parseInt(process.env.MAX_FILE_SIZE || '52428800'); // 50mb default
+    if (buffer.length > maxSize) {
       return {
         isClean: false,
-        message: 'File too large for basic scanning'
+        message: 'File too large for scanning'
       };
     }
 
