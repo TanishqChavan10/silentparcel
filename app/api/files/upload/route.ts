@@ -122,6 +122,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Log the configured max file size for debugging
+    const maxSize = parseInt(process.env.MAX_FILE_SIZE || '47185920');
+    console.log('Configured MAX_FILE_SIZE:', maxSize, 'bytes (', Math.round(maxSize / 1024 / 1024), 'MB)');
+
     // Rate limiting
     // const rateLimitResult = await fileUploadRateLimiter.isAllowed(request);
     // if (!rateLimitResult.allowed) {
@@ -141,6 +145,8 @@ export async function POST(request: NextRequest) {
     if (files.length > 0) {
       console.log('File types:', files.map(f => typeof f));
       console.log('File names:', files.map(f => f && f.name));
+      console.log('File sizes:', files.map(f => f && f.size));
+      console.log('Total size:', files.reduce((sum, f) => sum + (f ? f.size : 0), 0));
     }
     const password = formData.get('password') as string;
     const expiresIn = formData.get('expiresIn') as string;
@@ -297,9 +303,30 @@ export async function POST(request: NextRequest) {
     });
   } catch (err: any) {
     logger.error('Upload error:', err);
+    
+    // Provide more specific error messages based on error type
+    let errorMessage = 'Unexpected server error';
+    let statusCode = 500;
+    
+    if (err.message?.includes('body too large') || err.message?.includes('payload too large')) {
+      errorMessage = 'File size exceeds server limit';
+      statusCode = 413;
+    } else if (err.message?.includes('timeout')) {
+      errorMessage = 'Upload timeout - file may be too large';
+      statusCode = 408;
+    } else if (err.message?.includes('network') || err.message?.includes('connection')) {
+      errorMessage = 'Network error during upload';
+      statusCode = 503;
+    }
+    
     return NextResponse.json(
-      { error: 'Unexpected server error', details: err.message },
-      { status: 500 }
+      { 
+        error: errorMessage, 
+        details: err.message,
+        maxFileSize: process.env.MAX_FILE_SIZE || '47185920',
+        maxFileSizeMB: Math.round(parseInt(process.env.MAX_FILE_SIZE || '47185920') / 1024 / 1024)
+      },
+      { status: statusCode }
     );
   }
 }

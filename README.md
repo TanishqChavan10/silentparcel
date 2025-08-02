@@ -1,5 +1,13 @@
 # SilentParcel - Privacy-Focused File Sharing Platform
 
+<div align="center">
+
+![SilentParcel Logo](https://res.cloudinary.com/dougt66uq/image/upload/silentparcel_dpxnwc.jpg)
+
+![SilentParcel](https://img.shields.io/badge/Status-Active-brightgreen) ![Next.js](https://img.shields.io/badge/Next.js-15.4.5-black) ![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue)
+
+</div>
+
 A secure, end-to-end encrypted file sharing platform built with Next.js, featuring anonymous file uploads, virus scanning, and ephemeral chat rooms. Files are automatically encrypted before upload and self-destruct after download or expiry.
 
 ## 🚀 Features
@@ -262,11 +270,48 @@ Health check endpoint available at `/api/health` for monitoring.
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+We welcome contributions from the community! Here's how you can help:
+
+### Steps to Contribute:
+
+1. **Create an Issue**  
+   - Before starting any work, check the repository for existing issues.  
+   - If your idea or bug fix is not listed, create a new issue to discuss it.
+
+2. **Fork the Repository**  
+   - Click on the "Fork" button at the top right of the repository page to create your own copy of the repository.
+
+3. **Create a New Branch**  
+   - Clone your forked repository to your local machine:  
+     ```bash
+     git clone https://github.com/<your-username>/silentparcel.git
+     cd silentparcel
+     ```
+   - Create a new branch using the format `<username>--issue-<issue-no>`:  
+     ```bash
+     git checkout -b <username>--issue-<issue-no>
+     ```
+     Example:  
+     ```bash
+     git checkout -b SinghAman21--issue-01
+     ```
+
+4. **Make Your Changes**  
+   - Implement the changes you want to contribute in this branch.
+
+5. **Create a Pull Request (PR)**  
+   - Push your changes to your forked repository:  
+     ```bash
+     git push origin <username>--issue-<issue-no> -u
+     ```
+   - Go to the original repository and click on "New Pull Request."
+   - Select your branch and provide a **brief description** of the changes you have made.
+
+### Contribution Guidelines
+- Follow the existing code style and conventions
+- Add tests for new features
+- Update documentation as needed
+- Ensure all tests pass before submitting a PR
 
 ## 📄 License
 
@@ -279,8 +324,6 @@ For support, email singhaman21@proton.me or create an issue in the GitHub reposi
 ## 🔮 Roadmap
 
 - [ ] Enhanced chat room features
-- [ ] Mobile app development
-- [ ] Advanced analytics dashboard
 - [ ] API rate limiting improvements
 - [ ] Multi-language support
 
