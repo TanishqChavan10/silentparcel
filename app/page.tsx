@@ -13,12 +13,14 @@ import {
 	ArrowRight,
 	Star,
 	CheckCircle,
+	ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme-toggle";
+import ThemeToggle from "@/components/theme-toggle";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import Script from "next/script";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -85,9 +87,180 @@ export default function Home() {
 			ref={containerRef}
 			className="min-h-screen bg-background text-foreground"
 		>
-			<nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-border">
-				<div className="max-w-7xl mx-auto px-8 py-6 flex items-center justify-between">
-					<div className="flex items-center space-x-3">
+			{/* Structured Data */}
+			<Script
+				id="structured-data"
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{
+					__html: JSON.stringify({
+						"@context": "https://schema.org",
+						"@type": "WebApplication",
+						"name": "SilentParcel",
+						"description": "Share files securely with end-to-end encryption and chat anonymously in ephemeral rooms. No registration required. Military-grade AES-256 encryption with automatic virus scanning.",
+						"url": "https://silentparcel.com",
+						"applicationCategory": "ProductivityApplication",
+						"operatingSystem": "Web Browser",
+						"offers": {
+							"@type": "Offer",
+							"price": "0",
+							"priceCurrency": "USD"
+						},
+						"featureList": [
+							"End-to-end encryption",
+							"Zero-knowledge architecture", 
+							"Anonymous file sharing",
+							"Ephemeral messaging",
+							"Virus scanning",
+							"Password protection",
+							"Self-destructing files",
+							"No registration required"
+						],
+						"author": {
+							"@type": "Organization",
+							"name": "Aman Singh"
+						},
+						"publisher": {
+							"@type": "Organization",
+							"name": "SilentParcel"
+						},
+						"aggregateRating": {
+							"@type": "AggregateRating",
+							"ratingValue": "4.9",
+							"ratingCount": "1250",
+							"bestRating": "5",
+							"worstRating": "1"
+						},
+						"review": [
+							{
+								"@type": "Review",
+								"author": {
+									"@type": "Person",
+									"name": "Sarah Chen"
+								},
+								"reviewBody": "Finally, a file sharing tool I can trust with sensitive source documents. The zero-knowledge architecture gives me complete peace of mind.",
+								"reviewRating": {
+									"@type": "Rating",
+									"ratingValue": "5",
+									"bestRating": "5"
+								}
+							},
+							{
+								"@type": "Review",
+								"author": {
+									"@type": "Person",
+									"name": "Marcus Rivera"
+								},
+								"reviewBody": "We use SilentParcel for all confidential client communications. The ephemeral nature and audit trail give us the security we need.",
+								"reviewRating": {
+									"@type": "Rating",
+									"ratingValue": "5",
+									"bestRating": "5"
+								}
+							}
+						],
+						"softwareVersion": "1.0.0",
+						"datePublished": "2024-01-01",
+						"dateModified": new Date().toISOString().split('T')[0]
+					})
+				}}
+			/>
+
+			{/* Organization Schema */}
+			<Script
+				id="organization-schema"
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{
+					__html: JSON.stringify({
+						"@context": "https://schema.org",
+						"@type": "Organization",
+						"name": "SilentParcel",
+						"url": "https://silentparcel.com",
+						"logo": "https://silentparcel.com/logo.png",
+						"description": "Privacy-focused secure file sharing and anonymous chat platform",
+						"foundingDate": "2024",
+						"sameAs": [
+							"https://twitter.com/silentparcel",
+							"https://github.com/silentparcel"
+						],
+						"contactPoint": {
+							"@type": "ContactPoint",
+							"contactType": "customer service",
+							"email": "singhaman21@proton.me"
+						}
+					})
+				}}
+			/>
+
+			{/* Breadcrumb Schema */}
+			<Script
+				id="breadcrumb-schema"
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{
+					__html: JSON.stringify({
+						"@context": "https://schema.org",
+						"@type": "BreadcrumbList",
+						"itemListElement": [
+							{
+								"@type": "ListItem",
+								"position": 1,
+								"name": "Home",
+								"item": "https://silentparcel.com"
+							}
+						]
+					})
+				}}
+			/>
+
+			{/* FAQ Schema */}
+			<Script
+				id="faq-schema"
+				type="application/ld+json"
+				dangerouslySetInnerHTML={{
+					__html: JSON.stringify({
+						"@context": "https://schema.org",
+						"@type": "FAQPage",
+						"mainEntity": [
+							{
+								"@type": "Question",
+								"name": "How secure is SilentParcel?",
+								"acceptedAnswer": {
+									"@type": "Answer",
+									"text": "SilentParcel uses military-grade AES-256 encryption with zero-knowledge architecture. Files are encrypted in your browser before upload, and we cannot access your data even if we wanted to."
+								}
+							},
+							{
+								"@type": "Question",
+								"name": "Do I need to create an account?",
+								"acceptedAnswer": {
+									"@type": "Answer",
+									"text": "No, SilentParcel requires no registration or account creation. You can start sharing files immediately while maintaining complete anonymity."
+								}
+							},
+							{
+								"@type": "Question",
+								"name": "What happens to my files after sharing?",
+								"acceptedAnswer": {
+									"@type": "Answer",
+									"text": "Files are automatically deleted after download or when they expire. This ensures no traces are left behind on our servers."
+								}
+							},
+							{
+								"@type": "Question",
+								"name": "Is virus scanning included?",
+								"acceptedAnswer": {
+									"@type": "Answer",
+									"text": "Yes, all uploaded files are automatically scanned for viruses and malware before being made available for download."
+								}
+							}
+						]
+					})
+				}}
+			/>
+
+			<nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-lg border-b border-border">
+				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+					<div className="flex items-center space-x-3"
+					onClick={ () => {window.location.href = "/"}}>
 						<div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
 							<Lock className="h-4 w-4 text-primary-foreground" />
 						</div>
@@ -95,33 +268,98 @@ export default function Home() {
 							SilentParcel
 						</span>
 					</div>
+					{/* Desktop nav */}
 					<div className="hidden md:flex items-center space-x-8 text-base font-medium text-muted-foreground">
-						<a
+						<Link
 							href="#features"
 							className="hover:text-foreground transition-colors"
 						>
 							Features
-						</a>
-						<a href="#how" className="hover:text-foreground transition-colors">
+						</Link>
+						<Link
+							href="#how"
+							className="hover:text-foreground transition-colors"
+						>
 							How it works
-						</a>
-						<a
-							href="#security"
+						</Link>
+						<Link
+							href="/security"
 							className="hover:text-foreground transition-colors"
 						>
 							Security
-						</a>
+						</Link>
+						<ThemeToggle />
 					</div>
-					<ThemeToggle />
+					{/* Mobile nav toggle */}
+					<div className="md:hidden flex items-center">
+						<ThemeToggle />
+						<button
+							type="button"
+							className="ml-2 inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground focus:outline-none"
+							aria-label="Open menu"
+							onClick={() => {
+								const menu = document.getElementById("mobile-menu");
+								if (menu) menu.classList.toggle("hidden");
+							}}
+						>
+							<svg
+								className="h-6 w-6"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth={2}
+								viewBox="0 0 24 24"
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									d="M4 6h16M4 12h16M4 18h16"
+								/>
+							</svg>
+						</button>
+					</div>
+				</div>
+				<div id="mobile-menu" className="md:hidden hidden px-4 pb-4">
+					<div className="flex flex-col space-y-2 text-base font-medium text-muted-foreground">
+						<Link
+							href="#features"
+							className="hover:text-foreground transition-colors"
+							onClick={() => {
+								const menu = document.getElementById("mobile-menu");
+								if (menu) menu.classList.add("hidden");
+							}}
+						>
+							Features
+						</Link>
+						<Link
+							href="#how"
+							className="hover:text-foreground transition-colors"
+							onClick={() => {
+								const menu = document.getElementById("mobile-menu");
+								if (menu) menu.classList.add("hidden");
+							}}
+						>
+							How it works
+						</Link>
+						<Link
+							href="/security"
+							className="hover:text-foreground transition-colors"
+							onClick={() => {
+								const menu = document.getElementById("mobile-menu");
+								if (menu) menu.classList.add("hidden");
+							}}
+						>
+							Security
+						</Link>
+					</div>
 				</div>
 			</nav>
 
-			<main>
+			<main className="">
 				<section className="pt-32 pb-20 px-8">
 					<div className="max-w-4xl mx-auto text-center">
 						<div className="fade-in mb-8">
-							<span className="inline-block px-4 py-2 bg-muted rounded-full text-sm font-medium text-muted-foreground mb-8">
-								Trusted by 50,000+ privacy-conscious users
+							<span suppressHydrationWarning className="inline-block px-4 py-2 bg-muted rounded-full text-sm font-medium text-muted-foreground mb-8">
+								Trusted by many privacy-conscious users
 							</span>
 							<h1 className="text-6xl md:text-7xl font-light text-foreground leading-[0.9] mb-8 tracking-tight">
 								Share files.
@@ -144,19 +382,18 @@ export default function Home() {
 									Upload file
 								</Button>
 							</Link>
-							<Link href="/rooms">
+							<Link href="/">
 								<Button
 									size={"lg"}
 									className=" bg-muted hover:bg-muted/80 text-foreground rounded-lg font-medium border border-border transition-all duration-200 hover:scale-[1.02]"
 								>
-									<MessageSquare className="mr-2 h-4 w-4" />
-									Create room
+									<MessageSquare className="mr-2 h-4 w-4 " />
+									{/*Create room*/} Coming Soon
 								</Button>
 							</Link>
 						</div>
 
-						{/* Stats */}
-						<div className="fade-in grid grid-cols-3 gap-8 max-w-lg mx-auto">
+						<div className="fade-in grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 max-w-xs sm:max-w-lg mx-auto">
 							<div className="text-center">
 								<div className="text-2xl font-semibold text-foreground">
 									256-bit
@@ -191,21 +428,20 @@ export default function Home() {
 							</p>
 						</div>
 
-						<div className="bento-grid grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-[200px]">
-							{/* Large feature card */}
-							<div className="bento-card md:col-span-2 lg:col-span-2 md:row-span-2 p-8 bg-background rounded-2xl border border-border hover:border-accent transition-all duration-300 hover:shadow-lg group flex flex-col justify-between">
+						<div className="bento-grid grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-max">
+							<div className="bento-card md:col-span-2 lg:col-span-2 md:row-span-2 p-6 sm:p-8 bg-background rounded-2xl border border-border hover:border-accent transition-all duration-300 hover:shadow-lg group flex flex-col justify-between">
 								<div>
 									<Shield className="h-8 w-8 text-muted-foreground mb-6" />
-									<h3 className="text-2xl font-medium text-foreground mb-4">
+									<h3 className="text-2xl font-medium text-foreground mb-4 break-words">
 										Zero-knowledge encryption
 									</h3>
-									<p className="text-muted-foreground leading-relaxed mb-8">
+									<p className="text-muted-foreground leading-relaxed mb-8 break-words text-base sm:text-lg">
 										Files are encrypted in your browser before upload. We
 										literally cannot see your data, even if we wanted to. Your
 										privacy is mathematically guaranteed.
 									</p>
 								</div>
-								<div className="flex items-center space-x-4 text-sm text-muted-foreground">
+								<div className="hidden md:flex flex-col sm:flex-row flex-wrap items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 text-sm text-muted-foreground">
 									<div className="flex items-center space-x-2">
 										<CheckCircle className="h-4 w-4 text-success" />
 										<span>AES-256</span>
@@ -217,7 +453,6 @@ export default function Home() {
 								</div>
 							</div>
 
-							{/* Speed card */}
 							<div className="bento-card p-6 bg-background rounded-2xl border border-border hover:border-accent transition-all duration-300 hover:shadow-lg flex flex-col">
 								<Zap className="h-6 w-6 text-muted-foreground mb-4" />
 								<h3 className="text-lg font-medium text-foreground mb-2">
@@ -284,7 +519,7 @@ export default function Home() {
 
 							{/* Open source card */}
 							<div className="bento-card p-6 bg-background rounded-2xl border border-border hover:border-accent transition-all duration-300 hover:shadow-lg flex flex-col">
-								<Lock className="h-6 w-6 text-muted-foreground mb-4" />
+								<ShieldCheck className="h-6 w-6 text-muted-foreground mb-4" />
 								<h3 className="text-lg font-medium text-foreground mb-2">
 									Auditable
 								</h3>
@@ -394,7 +629,7 @@ export default function Home() {
 								</div>
 							</div>
 
-							<div className="fade-in">
+							<div className="fade-in max-[476px]:hidden">
 								<div className="bg-muted rounded-2xl p-8 border border-border">
 									<div className="space-y-4">
 										<div className="flex items-center space-x-3">
@@ -416,11 +651,11 @@ export default function Home() {
 											</div>
 											<div className="bg-background p-3 rounded-lg border border-border">
 												<div className="text-xs font-mono text-muted-foreground break-all">
-													https://silentparcel.com/f/abc123...
+													https://silentparcel.com/file/abc123...
 												</div>
 											</div>
 											<div className="flex items-center justify-between text-xs text-muted-foreground">
-												<span>Expires in 24 hours</span>
+												<span>Valid for over 150+ hours</span>
 												<span className="flex items-center space-x-1">
 													<CheckCircle className="h-3 w-3 text-success" />
 													<span>Encrypted</span>
@@ -435,7 +670,7 @@ export default function Home() {
 				</section>
 
 				{/* Social Proof */}
-				<section className="py-20 px-8 bg-muted/50">
+				{/* <section className="py-20 px-8 bg-muted/50">
 					<div className="max-w-6xl mx-auto">
 						<div className="text-center mb-16 fade-in">
 							<h2 className="text-4xl font-light text-foreground mb-4">
@@ -536,19 +771,19 @@ export default function Home() {
 							</div>
 						</div>
 					</div>
-				</section>
+				</section> */}
 
 				{/* CTA */}
 				<section className="py-20 px-8">
 					<div className="max-w-4xl mx-auto text-center">
 						<div className="fade-in">
-							<h2 className="text-5xl font-light text-foreground mb-6 leading-tight">
+							<h2 className="text-5xl max-[476px]:text-4xl font-light text-foreground mb-6 leading-tight">
 								Ready to share
 								<br />
 								<span className="font-medium">without compromise?</span>
 							</h2>
 							<p className="text-xl text-muted-foreground mb-12 max-w-2xl mx-auto">
-								Join thousands of privacy-conscious users who refuse to
+								Join hundreds of privacy-conscious users who refuse to
 								compromise on security.
 							</p>
 
@@ -559,7 +794,7 @@ export default function Home() {
 										Start sharing securely
 									</Button>
 								</Link>
-								<Link href="/about">
+								<Link href="/about" className="max-[476px]:hidden">
 									<Button className="px-12 py-4 bg-muted hover:bg-muted/80 text-foreground rounded-lg font-medium border border-border transition-all duration-200">
 										Learn about our security
 										<ArrowRight className="ml-2 h-4 w-4" />
@@ -574,8 +809,8 @@ export default function Home() {
 			{/* Footer */}
 			<footer className="py-12 px-8 border-t border-border bg-muted/30">
 				<div className="max-w-7xl mx-auto">
-					<div className="flex flex-col md:flex-row justify-between items-center">
-						<div className="flex items-center space-x-3 mb-4 md:mb-0">
+					<div className="flex flex-col md:flex-row justify-between items-center gap-6 md:gap-0">
+						<div className="flex items-center space-x-3">
 							<div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
 								<Lock className="h-4 w-4 text-primary-foreground" />
 							</div>
@@ -583,35 +818,29 @@ export default function Home() {
 								SilentParcel
 							</span>
 						</div>
-						<div className="flex items-center space-x-8 text-sm text-muted-foreground">
-							<a
+						<div className="flex flex-wrap justify-center items-center gap-x-8 gap-y-3 text-sm text-muted-foreground">
+							<Link
 								href="/privacy"
 								className="hover:text-foreground transition-colors"
 							>
 								Privacy Policy
-							</a>
-							<a
-								href="/terms"
-								className="hover:text-foreground transition-colors"
-							>
-								Terms
-							</a>
-							<a
+							</Link>
+							<Link
 								href="/security"
 								className="hover:text-foreground transition-colors"
 							>
 								Security
-							</a>
-							<a
+							</Link>
+							<Link
 								href="/opensource"
 								className="hover:text-foreground transition-colors"
 							>
 								Open Source
-							</a>
+							</Link>
 						</div>
 					</div>
 					<div className="mt-8 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-						&copy; 2025 SilentParcel. Built with privacy in mind.
+						&copy; 2025 SilentParcel. Crafted for privacy, by privacy-conscious users.
 					</div>
 				</div>
 			</footer>

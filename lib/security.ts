@@ -133,6 +133,14 @@ export const decrypt = (encryptedText: string): string => {
 };
 
 // Hybrid encryption for zip files (AES-256 + RSA)
+/**
+ * Decrypts an encrypted zip file buffer using AES-256-CBC after decrypting the AES key with RSA-OAEP.
+ *
+ * @param encrypted The encrypted zip file content as a Buffer (including the IV at the beginning).
+ * @param encryptedKey The base64-encoded encrypted AES key.
+ * @returns The decrypted zip file content as a Buffer.
+ * @throws Error if ZIP_ENCRYPTION_PRIVATE_KEY environment variable is not set or is invalid.
+ */
 export function encryptZipFile(buffer: Buffer): { encrypted: Buffer; encryptedKey: string } {
   const aesKey = crypto.randomBytes(32); // AES-256 key
   const iv = crypto.randomBytes(16);     // Initialization Vector
@@ -154,8 +162,8 @@ export function encryptZipFile(buffer: Buffer): { encrypted: Buffer; encryptedKe
     // @ts-ignore
     encryptedData
   ]);
-  // const publicKey = process.env.ZIP_ENCRYPTION_PUBLIC_KEY?.replace(/\\n/g, '\n');
-  const publicKey = fs.readFileSync('public_key.pem', 'utf8').replace(/\\n/g, '\n');
+  const publicKey = process.env.ZIP_ENCRYPTION_PUBLIC_KEY?.replace(/\\n/g, '\n');
+  // const publicKey = fs.readFileSync('public_key.pem', 'utf8').replace(/\\n/g, '\n');
 
   if (!publicKey) {
     throw new Error('ZIP_ENCRYPTION_PUBLIC_KEY environment variable is not set or is invalid.');
@@ -182,8 +190,9 @@ export function encryptZipFile(buffer: Buffer): { encrypted: Buffer; encryptedKe
  * @throws Error if ZIP_ENCRYPTION_PRIVATE_KEY environment variable is not set or is invalid.
  */
 export function decryptZipFile(encrypted: Buffer, encryptedKey: string): Buffer {
-  // const privateKey = process.env.ZIP_ENCRYPTION_PRIVATE_KEY?.replace(/\\n/g, '\n');
-  const privateKey = fs.readFileSync('private_key.pem', 'utf8').replace(/\\n/g, '\n');
+
+  const privateKey = process.env.ZIP_ENCRYPTION_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  // const privateKey = fs.readFileSync('private_key.pem', 'utf8').replace(/\\n/g, '\n');
 
   if (!privateKey) {
     throw new Error('ZIP_ENCRYPTION_PRIVATE_KEY environment variable is not set or is invalid.');

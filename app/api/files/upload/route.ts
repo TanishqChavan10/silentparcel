@@ -1,21 +1,169 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { databases, storage, ID, DATABASE_ID, COLLECTIONS, BUCKETS } from '@/lib/appwrite';
-import { fileUploadRateLimiter } from '@/lib/middleware/rateLimiter';
-import { generateId, generateSecureId, validateFileType, validateFileSize, getClientIP, getAllowedTypes } from '@/lib/security';
+import { BUCKETS } from '@/lib/appwrite';
+import { generateId, generateSecureId, validateFileType, validateFileSize, getClientIP, getAllowedTypes, hashPassword, encryptZipFile } from '@/lib/security';
 import { supabaseAdmin } from '@/lib/supabase';
-import redis, { REDIS_KEYS, setWithExpiry } from '@/lib/redis';
 import { virusScanner } from '@/lib/virusScanner';
 import { logger } from '@/lib/logger';
 import FormData from 'form-data';
 import fetch from 'node-fetch';
 import AdmZip from 'adm-zip';
 
-export async function POST(request: NextRequest) {
-  // Check environment configuration
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL ||
+// Utility function to check environment configuration
+function isProperlyConfigured(): boolean {
+  return !(
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co' ||
     !process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ||
-    process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT === 'https://placeholder.appwrite.io/v1') {
+    process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT === 'https://placeholder.appwrite.io/v1'
+  );
+}
+
+// Utility function to validate and process files
+async function validateAndProcessFiles(files: File[], relPaths: string[], request: NextRequest) {
+  const allowedTypes = getAllowedTypes();
+  const maxSize = parseInt(process.env.MAX_FILE_SIZE || '104857600');
+  let totalSize = 0;
+  const subfileMetadata: any[] = [];
+  const fileBuffers: Buffer[] = [];
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const relPath = relPaths[i];
+    
+    if (!validateFileType(file.name, file.type, allowedTypes)) {
+      return { error: NextResponse.json({ error: `File type not allowed: ${file.name}` }, { status: 400 }) };
+    }
+    
+    if (!validateFileSize(file.size, maxSize)) {
+      return { error: NextResponse.json({ error: `File size exceeds limit: ${file.name}` }, { status: 400 }) };
+    }
+    
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    
+    // Virus scan each file
+    const scanResult = await virusScanner.scanBuffer(fileBuffer);
+    if (!scanResult.isClean) {
+      await supabaseAdmin.from('audit_logs').insert({
+        action: 'virus_detected',
+        resource_type: 'file',
+        resource_id: String(relPath),
+        ip_address: getClientIP(request),
+        // user_agent: request.headers.get('user-agent') || undefined,
+        metadata: {
+          filename: file.name,
+          signature: scanResult.signature,
+          message: scanResult.message
+        }
+      });
+      return { error: NextResponse.json({ error: `File contains malicious content: ${file.name}` }, { status: 400 }) };
+    }
+    
+    totalSize += file.size;
+    fileBuffers.push(fileBuffer);
+    subfileMetadata.push({
+      file_name: file.name,
+      file_path: relPath,
+      size: file.size,
+      mime_type: file.type,
+    });
+  }
+
+  return { subfileMetadata, fileBuffers, totalSize };
+}
+
+// Utility function to upload file to Appwrite
+async function uploadToAppwrite(encrypted: Buffer, zipName: string, fileId: string) {
+  const form = new FormData();
+  form.append('fileId', fileId);
+  form.append('file', encrypted, { filename: zipName, contentType: 'application/zip' });
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
+    
+    const res = await fetch(`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${BUCKETS.FILES}/files`, {
+      method: 'POST',
+      headers: {
+        'X-Appwrite-Project': process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID ?? '',
+        'X-Appwrite-Key': process.env.APPWRITE_API_KEY ?? '',
+        ...form.getHeaders()
+      },
+      body: form,
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('Appwrite upload failed:', errText);
+      
+      // Handle specific Appwrite errors
+      if (res.status === 503) {
+        return { error: NextResponse.json({ 
+          error: 'Appwrite service temporarily unavailable. Please try again in a few minutes.',
+          details: 'Service timeout or overloaded'
+        }, { status: 503 }) };
+      }
+      
+      if (res.status === 413) {
+        return { error: NextResponse.json({ 
+          error: 'File too large for Appwrite storage',
+          details: 'File exceeds Appwrite bucket limits'
+        }, { status: 413 }) };
+      }
+      
+      return { error: NextResponse.json({ 
+        error: 'Appwrite upload failed', 
+        details: errText,
+        status: res.status
+      }, { status: 500 }) };
+    }
+    
+    return { uploadedFile: await res.json() as any };
+  } catch (error: any) {
+    console.error('Appwrite upload error:', error);
+    
+    if (error.name === 'AbortError') {
+      return { error: NextResponse.json({ 
+        error: 'Upload timeout - file may be too large or network is slow',
+        details: 'Request timed out after 60 seconds'
+      }, { status: 408 }) };
+    }
+    
+    if (error.code === 'ECONNRESET' || error.code === 'ENOTFOUND') {
+      return { error: NextResponse.json({ 
+        error: 'Network connection error',
+        details: 'Unable to connect to Appwrite service'
+      }, { status: 503 }) };
+    }
+    
+    return { error: NextResponse.json({ 
+      error: 'Upload failed due to network error',
+      details: error.message
+    }, { status: 500 }) };
+  }
+}
+
+// Utility function to create audit log
+async function createAuditLog(action: string, resourceId: string, request: NextRequest, metadata: any = {}) {
+  try {
+    await supabaseAdmin.from('audit_logs').insert({
+      action,
+      resource_type: 'zip',
+      resource_id: resourceId,
+      ip_address: getClientIP(request),
+      // user_agent: request.headers.get('user-agent') || undefined,
+      metadata
+    });
+  } catch (err: any) {
+    logger.error('Failed to create audit log:', err);
+  }
+}
+
+export async function POST(request: NextRequest) {
+  // Check environment configuration
+  if (!isProperlyConfigured()) {
     return NextResponse.json(
       { error: 'Service not properly configured' },
       { status: 503 }
@@ -23,6 +171,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Log the configured max file size for debugging
+    const maxSize = parseInt(process.env.MAX_FILE_SIZE || '52428800');
+    console.log('Configured MAX_FILE_SIZE:', maxSize, 'bytes (', Math.round(maxSize / 1024 / 1024), 'MB)');
+
     // Rate limiting
     // const rateLimitResult = await fileUploadRateLimiter.isAllowed(request);
     // if (!rateLimitResult.allowed) {
@@ -42,6 +194,8 @@ export async function POST(request: NextRequest) {
     if (files.length > 0) {
       console.log('File types:', files.map(f => typeof f));
       console.log('File names:', files.map(f => f && f.name));
+      console.log('File sizes:', files.map(f => f && f.size));
+      console.log('Total size:', files.reduce((sum, f) => sum + (f ? f.size : 0), 0));
     }
     const password = formData.get('password') as string;
     const expiresIn = formData.get('expiresIn') as string;
@@ -97,58 +251,11 @@ export async function POST(request: NextRequest) {
     //   );
     // }
 
-    // Validate file
-    // Validate file type and size
-    const allowedTypes = getAllowedTypes();
-    const maxSize = parseInt(process.env.MAX_FILE_SIZE || '104857600');
-    let totalSize = 0;
-    const subfileMetadata: any[] = [];
-    const fileBuffers: Buffer[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const relPath = relPaths[i];
-      if (!validateFileType(file.name, file.type, allowedTypes)) {
-        return NextResponse.json(
-          { error: `File type not allowed: ${file.name}` },
-          { status: 400 }
-        );
-      }
-      if (!validateFileSize(file.size, maxSize)) {
-        return NextResponse.json(
-          { error: `File size exceeds limit: ${file.name}` },
-          { status: 400 }
-        );
-      }
-      const fileBuffer = Buffer.from(await file.arrayBuffer());
-      // Virus scan each file
-      const scanResult = await virusScanner.scanBuffer(fileBuffer);
-      if (!scanResult.isClean) {
-        await supabaseAdmin.from('audit_logs').insert({
-          action: 'virus_detected',
-          resource_type: 'file',
-          resource_id: relPath,
-          ip_address: getClientIP(request),
-          user_agent: request.headers.get('user-agent'),
-          metadata: {
-            filename: file.name,
-            signature: scanResult.signature,
-            message: scanResult.message
-          }
-        });
-        return NextResponse.json(
-          { error: `File contains malicious content: ${file.name}` },
-          { status: 400 }
-        );
-      }
-      totalSize += file.size;
-      fileBuffers.push(fileBuffer);
-      subfileMetadata.push({
-        file_name: file.name,
-        file_path: relPath,
-        size: file.size,
-        mime_type: file.type,
-      });
-    }
+    // Validate and process files
+    const validationResult = await validateAndProcessFiles(files, relPaths, request);
+    if (validationResult.error) return validationResult.error;
+    
+    const { subfileMetadata, fileBuffers, totalSize } = validationResult;
 
     // Create ZIP archive in-memory
     const zip = new AdmZip();
@@ -159,37 +266,26 @@ export async function POST(request: NextRequest) {
     const zipName = `archive_${Date.now()}.zip`;
 
     // Encrypt the ZIP buffer
-    const { encryptZipFile } = require('@/lib/security');
     const { encrypted, encryptedKey } = encryptZipFile(zipBuffer);
 
     // Upload encrypted ZIP to Appwrite
     const fileId = generateId();
-    const downloadToken = generateSecureId();
-    const editToken = generateSecureId();
-    const form = new FormData();
-    form.append('fileId', fileId);
-    form.append('file', encrypted, { filename: zipName, contentType: 'application/zip' });
-    const res = await fetch(`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${BUCKETS.FILES}/files`, {
-      method: 'POST',
-      headers: {
-        'X-Appwrite-Project': process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID ?? '',
-        'X-Appwrite-Key': process.env.APPWRITE_API_KEY ?? '', // Must be a server API key
-        ...form.getHeaders()
-      },
-      body: form
-    });
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error('Appwrite upload failed:', errText);
-      return NextResponse.json(
-        { error: 'Appwrite upload failed', details: errText },
-        { status: 500 }
-      );
+    console.log(`Attempting to upload ${zipName} (${encrypted.length} bytes) to Appwrite...`);
+    const uploadResult = await uploadToAppwrite(encrypted, zipName, fileId);
+    if (uploadResult.error) {
+      console.error('Appwrite upload failed:', uploadResult.error);
+      return uploadResult.error;
     }
-    let uploadedFile : any = await res.json();
+    
+    const uploadedFile = uploadResult.uploadedFile;
 
     // Calculate expiry
-    const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();  // 7 days for expiration
+
+    let hashedPassword = null;
+    if (password) {
+      hashedPassword = await hashPassword(password);
+    }
 
     // Store file metadata in Supabase, including Appwrite file UID and encryptedKey
     const { data: fileRecord, error: fileInsertError } = await supabaseAdmin.from('zip_file_metadata').insert([
@@ -197,9 +293,9 @@ export async function POST(request: NextRequest) {
         original_name: zipName,
         size: encrypted.length,
         mime_type: 'application/zip',
-        download_token: downloadToken,
-        edit_token: editToken,
-        password: password || null,
+        download_token: generateSecureId(),
+        edit_token: generateSecureId(),
+        password: hashedPassword,
         expiry_date: expiryDate,
         max_downloads: maxDownloads,
         download_count: 0,
@@ -240,30 +336,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Log audit event
-    await supabaseAdmin.from('audit_logs').insert({
-      action: 'file_upload',
-      resource_type: 'zip',
-      resource_id: zipId,
-      ip_address: getClientIP(request),
-      user_agent: request.headers.get('user-agent'),
-      metadata: {
-        filename: zipName,
-        size: encrypted.length,
-        mimeType: 'application/zip',
-        subfiles: subfileMetadata.length
-      }
+    await createAuditLog('file_upload', zipId, request, {
+      filename: zipName,
+      size: encrypted.length,
+      mimeType: 'application/zip',
+      subfiles: subfileMetadata.length
     });
 
-    // Store tokens in Redis for quick access
-    await setWithExpiry(
-      REDIS_KEYS.FILE_UPLOAD(downloadToken),
-      JSON.stringify({ fileId, editToken }),
-      24 * 60 * 60 // 24 hours
-    );
-
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.nextUrl.origin;
-    const downloadUrl = `${baseUrl}/files/${downloadToken}`;
-    const editUrl = `${baseUrl}/files/manage/${editToken}`;
+    const downloadUrl = `${baseUrl}/files/${fileRecord.download_token}`;
+    const editUrl = `${baseUrl}/files/manage/${fileRecord.edit_token}`;
 
     return NextResponse.json({
       success: true,
@@ -274,9 +356,30 @@ export async function POST(request: NextRequest) {
     });
   } catch (err: any) {
     logger.error('Upload error:', err);
+    
+    // Provide more specific error messages based on error type
+    let errorMessage = 'Unexpected server error';
+    let statusCode = 500;
+    
+    if (err.message?.includes('body too large') || err.message?.includes('payload too large')) {
+      errorMessage = 'File size exceeds server limit';
+      statusCode = 413;
+    } else if (err.message?.includes('timeout')) {
+      errorMessage = 'Upload timeout - file may be too large';
+      statusCode = 408;
+    } else if (err.message?.includes('network') || err.message?.includes('connection')) {
+      errorMessage = 'Network error during upload';
+      statusCode = 503;
+    }
+    
     return NextResponse.json(
-      { error: 'Unexpected server error', details: err.message },
-      { status: 500 }
+      { 
+        error: errorMessage, 
+        details: err.message,
+        maxFileSize: process.env.MAX_FILE_SIZE || '52428800',
+        maxFileSizeMB: Math.round(parseInt(process.env.MAX_FILE_SIZE || '52428800') / 1024 / 1024)
+      },
+      { status: statusCode }
     );
   }
 }

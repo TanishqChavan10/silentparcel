@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       resource_id: roomId,
       user_id: creatorId,
       ip_address: getClientIP(request),
-      user_agent: request.headers.get('user-agent'),
+      // // user_agent: request.headers.get('user-agent'),
       metadata: {
         roomName: roomName || 'Anonymous Room',
         username: creatorUsername
