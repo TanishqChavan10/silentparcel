@@ -112,8 +112,8 @@ export class VirusScanner {
       };
     }
 
-    // Check file size limits - use environment variable or default to 45MB as fallback
-    const maxSize = parseInt(process.env.MAX_FILE_SIZE || '47185920'); // 45MB default
+    // Check file size limits - use environment variable or default to 50mb as fallback
+    const maxSize = parseInt(process.env.MAX_FILE_SIZE || '52428800'); // 50mb default
     if (buffer.length > maxSize) {
       return {
         isClean: false,

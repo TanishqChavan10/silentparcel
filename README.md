@@ -1,4 +1,4 @@
-# SilentParcel - Privacy-Focused File Sharing Platform
+# SilentParcel - Privacy-Focused Data Sharing Platform
 
 <div align="center">
 
@@ -8,7 +8,7 @@
 
 </div>
 
-A secure, end-to-end encrypted file sharing platform built with Next.js, featuring anonymous file uploads, virus scanning, and ephemeral chat rooms. Files are automatically encrypted before upload and self-destruct after download or expiry.
+A secure, end-to-end encrypted data sharing platform built with Next.js, featuring anonymous file uploads, virus scanning, and ephemeral chat rooms. Files are automatically encrypted before upload and self-destruct after download or expiry.
 
 ## 🚀 Features
 
