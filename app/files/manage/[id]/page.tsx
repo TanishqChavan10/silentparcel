@@ -958,7 +958,7 @@ export default function ManageFilePage() {
 									<div className="flex items-center justify-between">
 										<span className="text-sm">Expiry Date</span>
 										<span className="text-sm font-medium">
-											{onlyDate(fileInfo.expiryDate)}
+											{new Date(fileInfo.expiryDate).toLocaleDateString()}
 										</span>
 									</div>
 									<div className="pt-4 border-t border-border/30">
