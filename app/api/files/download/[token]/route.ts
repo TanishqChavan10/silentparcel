@@ -345,6 +345,8 @@ export async function POST(
     const body = await request.json();
     const selectedPaths: string[] = Array.isArray(body.paths) ? body.paths : [];
 
+    console.log('Selected paths:', selectedPaths);
+
     if (!selectedPaths.length) {
       console.log('No files/folders selected');
       return NextResponse.json({ error: "No files/folders selected" }, { status: 400 });
@@ -355,8 +357,20 @@ export async function POST(
     if (validationResult.error) return validationResult.error;
     const { fileRecord } = validationResult;
 
+    console.log('File validation successful, downloading ZIP...');
+
     // Download and decrypt ZIP
-    const zipBuffer = await downloadAndDecryptFile(fileRecord.appwrite_id, fileRecord.encrypted_key);
+    let zipBuffer: Buffer;
+    try {
+      zipBuffer = await downloadAndDecryptFile(fileRecord.appwrite_id, fileRecord.encrypted_key);
+      console.log('ZIP downloaded and decrypted successfully, size:', zipBuffer.length);
+    } catch (err) {
+      console.error("Failed to download or decrypt ZIP:", err);
+      return NextResponse.json(
+        { error: "Failed to download or decrypt file. Please try again later." },
+        { status: 500 }
+      );
+    }
 
     // Extract only selected files/folders from the ZIP
     let newZipBuffer: Buffer;
@@ -365,24 +379,47 @@ export async function POST(
       console.log('Extracting selected files/folders from ZIP');
       const zip = new AdmZip(zipBuffer);
       const entries = zip.getEntries();
-      const selectedEntries = entries.filter(entry =>
-        selectedPaths.some(sel =>
-          entry.entryName === sel || entry.entryName.startsWith(sel.endsWith("/") ? sel : sel + "/")
-        )
-      );
+      console.log('Total entries in ZIP:', entries.length);
+      console.log('Available entries:', entries.map(e => e.entryName).slice(0, 10)); // Log first 10 entries
+
+      const selectedEntries = entries.filter(entry => {
+        const matches = selectedPaths.some(sel => {
+          const exactMatch = entry.entryName === sel;
+          const folderMatch = entry.entryName.startsWith(sel.endsWith("/") ? sel : sel + "/");
+          return exactMatch || folderMatch;
+        });
+        if (matches) {
+          console.log('Matched entry:', entry.entryName);
+        }
+        return matches;
+      });
+
+      console.log('Selected entries count:', selectedEntries.length);
 
       if (!selectedEntries.length) {
         console.log('No matching files/folders in archive');
-        return NextResponse.json({ error: "No matching files/folders in archive" }, { status: 404 });
+        console.log('Requested paths:', selectedPaths);
+        console.log('Available paths:', entries.map(e => e.entryName));
+        return NextResponse.json({ 
+          error: "No matching files/folders in archive",
+          requestedPaths: selectedPaths,
+          availablePaths: entries.map(e => e.entryName).slice(0, 20) // Return first 20 for debugging
+        }, { status: 404 });
       }
 
       // Create a new ZIP with only selected entries
       const newZip = new AdmZip();
       for (const entry of selectedEntries) {
-        if (entry.isDirectory) {
-          newZip.addFile(entry.entryName, Buffer.alloc(0));
-        } else {
-          newZip.addFile(entry.entryName, entry.getData());
+        try {
+          if (entry.isDirectory) {
+            newZip.addFile(entry.entryName, Buffer.alloc(0));
+          } else {
+            const entryData = entry.getData();
+            newZip.addFile(entry.entryName, entryData);
+          }
+        } catch (entryErr) {
+          console.error('Error processing entry:', entry.entryName, entryErr);
+          // Continue with other entries instead of failing completely
         }
       }
 
@@ -391,10 +428,13 @@ export async function POST(
         selectedEntries.length === 1 && !selectedEntries[0].isDirectory
           ? selectedEntries[0].name
           : `${fileRecord.original_name.replace(/\.zip$/, "")}_partial.zip`;
-      console.log('Created new ZIP with selected files');
+      console.log('Created new ZIP with selected files, size:', newZipBuffer.length);
     } catch (err) {
       console.error("ZIP extraction error", err);
-      return NextResponse.json({ error: "Failed to extract selected files. Please try again later or contact support." }, { status: 500 });
+      return NextResponse.json({ 
+        error: "Failed to extract selected files. Please try again later or contact support.",
+        details: err instanceof Error ? err.message : 'Unknown error'
+      }, { status: 500 });
     }
 
     // Update download count and handle cleanup
@@ -405,18 +445,22 @@ export async function POST(
 
     // Return new ZIP
     console.log('Returning new ZIP as download');
-    const response = new NextResponse(new Uint8Array(newZipBuffer));
+    const response = new NextResponse(newZipBuffer);  // flag:   const response = new NextResponse(new Uint8Array(newZipBuffer));
     response.headers.set("Content-Type", "application/zip");
     response.headers.set(
       "Content-Disposition",
-      `attachment; filename=\"${newZipName}\"`
+      `attachment; filename="${newZipName}"`  //flag:       `attachment; filename=\"${newZipName}\"`
     );
     return response;
 
   } catch (error) {
     console.error("Selective download error", error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: "Selective download failed. Please try again later or contact support." },
+      { 
+        error: "Selective download failed. Please try again later or contact support.",
+        details: errorMessage
+      },
       { status: 500 }
     );
   }
