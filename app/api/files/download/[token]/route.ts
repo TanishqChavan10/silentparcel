@@ -445,11 +445,11 @@ export async function POST(
 
     // Return new ZIP
     console.log('Returning new ZIP as download');
-    const response = new NextResponse(newZipBuffer);
+    const response = new NextResponse(newZipBuffer);  // flag:   const response = new NextResponse(new Uint8Array(newZipBuffer));
     response.headers.set("Content-Type", "application/zip");
     response.headers.set(
       "Content-Disposition",
-      `attachment; filename="${newZipName}"`
+      `attachment; filename="${newZipName}"`  //flag:       `attachment; filename=\"${newZipName}\"`
     );
     return response;
 
