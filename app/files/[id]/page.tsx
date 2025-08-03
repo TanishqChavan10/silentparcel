@@ -411,6 +411,7 @@ export default function FileDownloadPage() {
 		setDownloading(true);
 		setError("");
 		try {
+			console.log('Attempting selective download with paths:', selectedPaths);
 			const res = await fetch(
 				`/api/files/download/${fileId}${
 					fileInfo?.isPasswordProtected
@@ -425,7 +426,15 @@ export default function FileDownloadPage() {
 			);
 			if (!res.ok) {
 				const data = await res.json();
-				setError(data.error || "Download failed");
+				console.error('Selective download failed:', data);
+				let errorMessage = data.error || "Download failed";
+				if (data.details) {
+					errorMessage += ` (${data.details})`;
+				}
+				if (data.requestedPaths && data.availablePaths) {
+					errorMessage += `\nRequested: ${data.requestedPaths.join(', ')}\nAvailable: ${data.availablePaths.slice(0, 5).join(', ')}...`;
+				}
+				setError(errorMessage);
 				setDownloading(false);
 				return;
 			}
@@ -439,7 +448,8 @@ export default function FileDownloadPage() {
 			a.remove();
 			setDownloading(false);
 		} catch (e) {
-			setError("Download failed");
+			console.error('Selective download error:', e);
+			setError(`Download failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
 			setDownloading(false);
 		}
 	};
