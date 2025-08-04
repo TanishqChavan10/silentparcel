@@ -342,14 +342,21 @@ export async function POST(
     const { token } = await context.params;
     const { searchParams } = new URL(request.url);
     const password = searchParams.get("password");
-    const body = await request.json();
-    const selectedPaths: string[] = Array.isArray(body.paths) ? body.paths : [];
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      return NextResponse.json({ error: "Invalid request format" }, { status: 400 });
+    }
+    
+    const selectedPaths: string[] = Array.isArray(body?.paths) ? body.paths.filter((path: any) => typeof path === 'string' && path.trim().length > 0) : [];
 
     console.log('Selected paths:', selectedPaths);
 
     if (!selectedPaths.length) {
-      console.log('No files/folders selected');
-      return NextResponse.json({ error: "No files/folders selected" }, { status: 400 });
+      console.log('No valid files/folders selected');
+      return NextResponse.json({ error: "No valid files/folders selected" }, { status: 400 });
     }
 
     // Validate file access
@@ -377,13 +384,29 @@ export async function POST(
     let newZipName: string;
     try {
       console.log('Extracting selected files/folders from ZIP');
+      
+      if (!zipBuffer || zipBuffer.length === 0) {
+        throw new Error("Empty ZIP buffer received");
+      }
+      
       const zip = new AdmZip(zipBuffer);
       const entries = zip.getEntries();
       console.log('Total entries in ZIP:', entries.length);
+      
+      if (entries.length === 0) {
+        throw new Error("ZIP file appears to be empty");
+      }
+      
       console.log('Available entries:', entries.map(e => e.entryName).slice(0, 10)); // Log first 10 entries
 
       const selectedEntries = entries.filter(entry => {
+        if (!entry || !entry.entryName) {
+          console.warn('Skipping invalid entry:', entry);
+          return false;
+        }
+        
         const matches = selectedPaths.some(sel => {
+          if (!sel) return false;
           const exactMatch = entry.entryName === sel;
           const folderMatch = entry.entryName.startsWith(sel.endsWith("/") ? sel : sel + "/");
           return exactMatch || folderMatch;
@@ -409,26 +432,48 @@ export async function POST(
 
       // Create a new ZIP with only selected entries
       const newZip = new AdmZip();
+      let processedEntries = 0;
+      
       for (const entry of selectedEntries) {
         try {
+          if (!entry || !entry.entryName) {
+            console.warn('Skipping invalid entry');
+            continue;
+          }
+          
           if (entry.isDirectory) {
             newZip.addFile(entry.entryName, Buffer.alloc(0));
           } else {
             const entryData = entry.getData();
-            newZip.addFile(entry.entryName, entryData);
+            if (entryData && entryData.length > 0) {
+              newZip.addFile(entry.entryName, entryData);
+            } else {
+              console.warn('Skipping empty file:', entry.entryName);
+              continue;
+            }
           }
+          processedEntries++;
         } catch (entryErr) {
-          console.error('Error processing entry:', entry.entryName, entryErr);
+          console.error('Error processing entry:', entry?.entryName, entryErr);
           // Continue with other entries instead of failing completely
         }
       }
+      
+      if (processedEntries === 0) {
+        throw new Error("No valid entries could be processed");
+      }
 
       newZipBuffer = newZip.toBuffer();
-      newZipName =
-        selectedEntries.length === 1 && !selectedEntries[0].isDirectory
-          ? selectedEntries[0].name
-          : `${fileRecord.original_name.replace(/\.zip$/, "")}_partial.zip`;
-      console.log('Created new ZIP with selected files, size:', newZipBuffer.length);
+      
+      // Generate filename safely
+      if (selectedEntries.length === 1 && !selectedEntries[0].isDirectory) {
+        newZipName = selectedEntries[0].name || "extracted_file";
+      } else {
+        const originalName = fileRecord.original_name || "archive";
+        newZipName = `${originalName.replace(/\.zip$/i, "")}_partial.zip`;
+      }
+      
+      console.log('Created new ZIP with selected files, size:', newZipBuffer.length, 'filename:', newZipName);
     } catch (err) {
       console.error("ZIP extraction error", err);
       return NextResponse.json({ 
